@@ -7,6 +7,7 @@
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QDebug>
+#include <QLocale> // For SystemLocaleShortDate
 
 HomeScreenWidget::HomeScreenWidget(SettingsManager *settingsManager, QWidget *parent)
     : QWidget(parent), m_settingsManager(settingsManager)
@@ -51,7 +52,7 @@ void HomeScreenWidget::populateConversationList() {
             item->setData(Qt::UserRole, QVariant::fromValue(id)); // Store UUID
             item->setToolTip(QString("ID: %1\nLast Modified: %2")
                              .arg(id.toString())
-                             .arg(convo.lastModifiedAt.toLocalTime().toString(Qt::DefaultLocaleShortDate)));
+                             .arg(convo.lastModifiedAt.toLocalTime().toString(Qt::SystemLocaleShortDate))); // Use SystemLocaleShortDate
             m_conversationListWidget->addItem(item);
         } else {
             qWarning() << "Conversation ID" << id << "in order list but not found in loaded conversations map.";

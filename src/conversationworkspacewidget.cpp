@@ -36,7 +36,8 @@ void ConversationWorkspaceWidget::addMessageToTreeModel(
 
     // Recursively add children
     if (childrenMap.contains(msg.id)) {
-        for (const Message& childMsg : qAsConst(childrenMap[msg.id])) {
+        // Iterate directly over the QList associated with the key
+        for (const Message& childMsg : childrenMap[msg.id]) {
             addMessageToTreeModel(childMsg, childrenMap, itemMap, item, model);
         }
     }

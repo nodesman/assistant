@@ -14,7 +14,7 @@ private slots:
     void cleanup();         // Runs after each test function
 
     // --- Test Functions ---
-    void testAddition();    // Test the add() method of MainWindow
+    // void testAddition(); // Remove this test - MainWindow::add was removed
     // void testGuiElement(); // Example placeholder for GUI tests (more complex)
 
 private:
@@ -44,25 +44,6 @@ void TestExample::cleanup()
     // Delete the instance after each test function
     delete testWindow;
     testWindow = nullptr;
-}
-
-void TestExample::testAddition()
-{
-    // Arrange
-    int x = 5;
-    int y = 10;
-    int expected = 15;
-
-    // Act
-    int result = testWindow->add(x, y);
-
-    // Assert
-    QCOMPARE(result, expected); // Basic Qt Test comparison macro
-
-    // Example of a failing test with a clear message
-    QVERIFY2(result == expected + 1, "Addition result was not the expected incorrect value (demonstrating failure).");
-    // QVERIFY2 provides a custom message on failure.
-    // QCOMPARE provides automatic messages like "Compared values are not the same. Expected: 15, Actual: 16"
 }
 
 // Example of testing GUI elements (often needs more setup)
