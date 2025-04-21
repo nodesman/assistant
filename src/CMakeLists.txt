@@ -2,6 +2,11 @@
 add_executable(${PROJECT_NAME}
     main.cpp
     mainwindow.cpp
+    datamodels.cpp
+    settingsmanager.cpp
+    homescreenwidget.cpp
+    conversationworkspacewidget.cpp
+    settingsdialog.cpp
     # Do NOT list header files (.h) here
 )
 
