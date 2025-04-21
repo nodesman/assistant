@@ -1,3 +1,7 @@
+.idea
+
+cmake-build-debug/
+
 # Common Node ignores
 node_modules/
 .DS_Store
