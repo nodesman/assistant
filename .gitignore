@@ -1,3 +1,4 @@
+kai
 # CMake build files
 cmake-build-*/
 CMakeCache.txt
@@ -47,3 +48,6 @@ UnitTests
 
 # Kai specific logs (auto-added)
 .kai/logs/
+
+# Kai internal files (logs, cache, config) - (auto-added by Kai)
+.kai/
