@@ -1,0 +1,42 @@
+{
+  "name": "personal-journal-cli",
+  "version": "0.1.0",
+  "description": "CLI tool for periodic journaling with AI reflection (Part of Personal Task Management System).",
+  "main": "dist/journal_cli.js",
+  "bin": {
+    "journal": "dist/journal_cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node src/journal_cli.ts",
+    "dev": "ts-node src/journal_cli.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "journal",
+    "cli",
+    "ai",
+    "reflection",
+    "typescript",
+    "task-management"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.15.0",
+    "commander": "^12.1.0",
+    "inquirer": "^8.2.4",
+    "js-yaml": "^4.1.0",
+    "moment": "^2.30.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^8.2.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.14.12"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

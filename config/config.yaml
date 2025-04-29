@@ -1,0 +1,23 @@
+# Default configuration for the Journaling Tool
+journal_directory: "~/.personal_system/journal_entries" # Specific, fixed location
+ai:
+  # provider: "google" # or "openai"
+  model: "gemini-1.5-flash-latest"
+  api_key_env_var: "GOOGLE_API_KEY" # Or specific key for this tool
+  reflection_prompt: |
+    You are a reflective journaling assistant. The user has written the following journal entry.
+    Please read it carefully and then:
+    1. Briefly summarize the main points or feelings expressed.
+    2. Ask 1-2 open-ended questions to encourage deeper reflection on the entry.
+    3. Offer a gentle, encouraging closing thought.
+
+    Keep your reflection concise and supportive.
+
+    User's Entry:
+    ---
+    {journal_entry}
+    ---
+
+    Your Reflection:
+
+editor_command: "code -w" # Command to launch editor (e.g., "subl -w", "nvim", "code -w"). '-w' is often needed to wait.
