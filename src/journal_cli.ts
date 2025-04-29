@@ -31,21 +31,27 @@ async function main() {
     let config: JournalConfig;
     try {
         config = await configLoader.loadConfig();
-         // Ensure the journal directory from config exists AFTER loading
-         const fileManagerForInit = new FileManager(config.journal_directory); // Use loaded path
-         await fileManagerForInit.ensureBaseDirExists();
-         console.log(`Using journal directory: ${config.journal_directory}`); // Use the absolute path
     } catch (error: any) {
         console.error(`Error loading configuration: ${error.message}`);
+        // No UI instance here yet, maybe create a basic one just for error?
+        // ui.displayError(`Error loading configuration:`, error); // If UI was available
         process.exit(1);
     }
 
-    // --- Dependency Injection ---
+    // --- Instantiate UI early for potential error reporting ---
     const ui = new UserInterface();
+
     try {
-        // FileManager uses the specific directory from config, not relative paths
+        // Ensure the journal directory exists using the loaded config path
+        const fileManagerForInit = new FileManager(config.journal_directory);
+        await fileManagerForInit.ensureBaseDirExists();
+        console.log(`Using journal directory: ${config.journal_directory}`);
+
+        // --- Dependency Injection (Now that config is guaranteed to be loaded) ---
         const fileManager = new FileManager(config.journal_directory);
-        const editorInteraction = new EditorInteraction(config.editor_command); // Use configured editor command
+        // Use editor_command, provide a fallback if it's null/undefined
+        const editorCmd = config.editor_command || process.env.EDITOR || 'code -w'; // Example fallback logic
+        const editorInteraction = new EditorInteraction(editorCmd);
         const aiManager = new AIManager(config.ai); // Pass only the AI part of config
 
         const journalManager = new JournalManager(
@@ -55,10 +61,7 @@ async function main() {
             editorInteraction,
             aiManager
         );
-
-        // --- Run the Application ---
         await journalManager.startJournaling();
-
     } catch (error: any) {
         ui.displayError("An unexpected error occurred:", error);
         process.exit(1);

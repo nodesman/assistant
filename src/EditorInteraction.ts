@@ -34,7 +34,7 @@ export class EditorInteraction {
                 shell: true // Use shell to handle complex commands, paths with spaces (maybe), and '-w' flags
             });
 
-            editorProcess.on('error', (err) => {
+            editorProcess.on('error', (err: Error) => {
                 console.error(`Failed to start editor command '${this.editorCommand}'. Is '${command}' in your PATH?`);
                 // Provide specific advice based on common errors if possible
                 if ((err as any).code === 'ENOENT') {
@@ -46,7 +46,7 @@ export class EditorInteraction {
                 reject(new Error(`Failed to launch editor: ${err.message}`)); // Reject with a more informative error
             });
 
-            editorProcess.on('close', (code) => {
+            editorProcess.on('close', (code: number | null) => {
                 console.log(`Editor process exited with code ${code}`);
                 if (code === 0) {
                     // Editor closed successfully (or user saved and closed)
