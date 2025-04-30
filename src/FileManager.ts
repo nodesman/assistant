@@ -1,5 +1,6 @@
 // src/FileManager.ts
-import fs, { Dirent } from 'fs/promises'; // Import Dirent
+import fs from 'fs/promises';
+import { Dirent } from 'fs'; // Import Dirent from the base 'fs' module
 import path from 'path';
 import os from 'os';
 import { JournalEntry } from './types';
@@ -49,8 +50,8 @@ export class FileManager {
             await this.ensureBaseDirExists();
             const entries = await fs.readdir(this.journalBaseDir, { withFileTypes: true });
             return entries
-                .filter((dirent: Dirent) => dirent.isDirectory()) // Add Dirent type
-                .map((dirent: Dirent) => dirent.name); // Add Dirent type
+                .filter((dirent: Dirent) => dirent.isDirectory()) // Use imported Dirent type
+                .map((dirent: Dirent) => dirent.name); // Use imported Dirent type
         } catch (error) {
             console.error("Error listing journal topics:", error);
             return [];
