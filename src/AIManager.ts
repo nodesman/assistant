@@ -1,7 +1,7 @@
 // src/AIManager.ts
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 // import OpenAI from "openai"; // Uncomment if using OpenAI
-import { AiClient, JournalConfig } from "./types";
+import { AiClient, JournalConfig, ChatMessage } from "./types"; // Import ChatMessage
 
 export class AIManager implements AiClient {
     private config: JournalConfig['ai'];
@@ -116,6 +116,68 @@ export class AIManager implements AiClient {
              } else {
                  throw new Error("An unknown error occurred while communicating with the AI.");
              }
+        }
+    }
+
+    /**
+     * Generates a response based on a conversation history.
+     * @param history An array of ChatMessage objects representing the conversation.
+     * @returns The AI's response text or null if an error occurs.
+     */
+    async generateChatResponse(history: ChatMessage[]): Promise<string | null> {
+        if (!this.googleAI) {
+            throw new Error("AI client not initialized correctly.");
+        }
+
+        // Map our ChatMessage format to the format expected by the Google AI SDK's chat history
+        // Ensure role names match SDK ('model' is correct for Gemini)
+        const googleChatHistory = history.map(msg => ({
+            role: msg.role,
+            parts: [{ text: msg.content }]
+        }));
+
+        // Extract the latest user message to send
+        const lastUserMessage = googleChatHistory.pop(); // History now contains context *before* the last user message
+        if (!lastUserMessage || lastUserMessage.role !== 'user') {
+            console.error("History format error: Last message should be from user for chat.");
+            // Restore history if needed before returning
+            if(lastUserMessage) googleChatHistory.push(lastUserMessage);
+            return null;
+        }
+        const currentMessageContent = lastUserMessage.parts[0].text;
+
+        try {
+            console.log(`Sending chat request to AI model (${this.config.model})...`);
+            const model = this.googleAI.getGenerativeModel({
+                 model: this.config.model,
+                 // Define safety settings for chat as well
+                 safetySettings: [
+                     { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                     { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                     { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                 ],
+            });
+
+            // Start a chat session with the preceding history
+            const chat = model.startChat({
+                history: googleChatHistory,
+                // generationConfig can be set here too if needed
+            });
+
+            const result = await chat.sendMessage(currentMessageContent); // Send only the latest user message
+
+            if (!result.response) {
+                console.error("AI chat response was undefined or missing.", result);
+                throw new Error("AI returned an empty chat response.");
+            }
+            const responseText = result.response.text(); // Get text() handles potential streaming internally if not awaited differently
+            if (!responseText) throw new Error("AI returned an empty text response in chat."); // Check for empty text
+
+            return responseText;
+        } catch (error) {
+            console.error("Error generating AI chat response:", error);
+            return null; // Return null to indicate failure
         }
     }
 }

@@ -1,64 +1,70 @@
-# MyQtApp
+# Personal Journal CLI
 
-A basic Qt application built with CMake.
+A CLI tool for periodic journaling with AI reflection, designed as part of a personal task management system.
+
+## Features (Planned/Implemented)
+
+*   Create and manage journal topics.
+*   Write journal entries using your preferred external editor.
+*   Get initial AI reflections on your entries.
+*   Engage in an interactive chat session with the AI to explore thoughts further.
+*   Use trigger commands (like `/integrate`) within your notes to initiate AI-assisted structuring.
+*   Maintain a persistent knowledge base per topic (`notes.md`).
+*   Track topic status and simple tasks using a Kanban board (`state.yaml`).
+*   Save AI conversation logs (`chat_log.md`).
+
+## Setup
+
+1.  **Prerequisites:**
+    *   Node.js (v18.0.0 or higher recommended)
+    *   npm (usually comes with Node.js)
+
+2.  **Clone the Repository (if applicable):**
+    ```bash
+    git clone <repository-url>
+    cd personal-journal-cli
+    ```
+
+3.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
+
+## Configuration
+
+1.  **Configuration File:**
+    *   The tool looks for a configuration file at `~/.config/personal-journal-cli/config.yaml` by default.
+    *   If it doesn't exist, the tool will try to create it using defaults based on the `config/config.yaml` included in the project.
+    *   You can customize the journal directory path, AI model, API key environment variable name, AI prompt, and editor command in this file.
+
+2.  **AI API Key:**
+    *   The tool requires an API key for the configured AI provider (currently Google Gemini by default).
+    *   Set the environment variable specified in your `config.yaml` (default: `GOOGLE_API_KEY`) before running the tool.
+    ```bash
+    # Example for Bash/Zsh
+    export GOOGLE_API_KEY="YOUR_ACTUAL_API_KEY"
+    ```
+    *   Consider adding this export command to your shell profile (`.bashrc`, `.zshrc`, `.profile`, etc.) for persistence across terminal sessions.
 
 ## Building
 
-This project uses CMake and Qt. You can build it using CLion's build functionality or via the command line.
+To compile the TypeScript code to JavaScript (output to `dist/` directory):
+```bash
+npm run build
+```
+You typically need to run this after pulling changes or modifying the `.ts` source files.
 
-**Command Line Build:**
+## Running the Tool
 
-1.  **Configure (Create build directory and generate build files):**
+1.  **Ensure Prerequisites:** Make sure you have installed dependencies (`npm install`) and set the required API key environment variable.
+2.  **Build (if necessary):** Run `npm run build` if you haven't already or if you've made code changes.
+3.  **Execute:**
     ```bash
-    # For a Debug build (most common for development)
-    cmake -B cmake-build-debug -S . -DCMAKE_BUILD_TYPE=Debug
-
-    # For a Release build (optimized for performance)
-    # cmake -B cmake-build-release -S . -DCMAKE_BUILD_TYPE=Release
+    node dist/journal_cli.js
+    ```
+    *Alternatively, if you have used `npm link` or installed the package globally, you might be able to run it using the command defined in `package.json`'s `bin` section:*
+    ```bash
+    journal
     ```
 
-2.  **Build (Compile the project):**
-    ```bash
-    # Build the Debug configuration
-    cmake --build cmake-build-debug
-
-    # Build the Release configuration
-    # cmake --build cmake-build-release
-    ```
-
-The main application executable (`MyQtApp`) and the test executable (`UnitTests`) will be placed in the corresponding build directory (e.g., `cmake-build-debug/src/MyQtApp` and `cmake-build-debug/tests/UnitTests`).
-
-## Running the Application
-
-*   **From CLion:** Select the `MyQtApp` run configuration and click the 'Run' button.
-*   **From Command Line:**
-    ```bash
-    ./cmake-build-debug/src/MyQtApp
-    ```
-
-## Running Tests
-
-Tests are run using CTest, which is CMake's testing tool.
-
-*   **Using CLion:**
-    1.  Select the `All CTest` run configuration from the dropdown menu near the top-right.
-    2.  Click the green 'Run' button (the triangle). Results will appear in the 'Test Runner' panel.
-    3.  Alternatively, open a test file (e.g., `tests/test_example.cpp`) and click the run icons (green triangles) in the gutter next to the test class or individual test functions.
-
-*   **Using Command Line:**
-    1.  Navigate to your build directory:
-        ```bash
-        cd cmake-build-debug
-        ```
-    2.  Run CTest:
-        ```bash
-        # Run all tests defined in CMakeLists.txt
-        ctest
-
-        # Run with verbose output (shows PASS/FAIL details for each test function)
-        ctest -V
-
-        # Run specific tests matching a name pattern (useful if you have many tests)
-        # For example, run only tests with "Addition" in their name:
-        # ctest -R Addition
-        ```
+The tool will then guide you through selecting or creating a journal topic and opening your editor. Follow the instructions provided within the tool and the editor's help text.

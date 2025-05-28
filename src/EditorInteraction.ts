@@ -68,15 +68,19 @@ export class EditorInteraction {
      * Returns null if the editor could not be opened, the content was unchanged, or the entry was empty after editing.
      * @param promptText Text to prepend to the editor buffer, explaining what to do.
      * @param existingContent Existing content to load into the editor.
+     * @param legendText Optional help text to append at the bottom of the editor buffer.
      * @returns The user-written content (excluding the prompt), or null if cancelled/empty/unchanged.
      */
     async CANCELLABLE_getUserInputViaEditor(
         promptText: string = "## Write your journal entry below:\n\n",
-        existingContent: string = ''
+        existingContent: string = '',
+        legendText?: string
     ): Promise<string | null> {
         // Ensure prompt ends with newlines for separation
         const formattedPrompt = promptText.trimEnd() + "\n\n";
-        const initialContent = `${formattedPrompt}${existingContent}`;
+        const formattedLegend = legendText ? `\n\n---\n${legendText.trim()}\n---` : ''; // Add separators for legend
+
+        let initialContent = `${formattedPrompt}${existingContent}${formattedLegend}`;
         let tempFilePath = '';
         let tempDir = '';
 
@@ -93,8 +97,16 @@ export class EditorInteraction {
 
             const updatedContent = await fs.readFile(tempFilePath, 'utf-8');
 
+            // --- Remove the legend before processing ---
+            let contentWithoutLegend = updatedContent;
+            if (formattedLegend && updatedContent.endsWith(formattedLegend)) {
+                contentWithoutLegend = updatedContent.substring(0, updatedContent.length - formattedLegend.length);
+            } else if (formattedLegend) {
+                console.warn("Legend text may have been modified or was not found at the end of the editor buffer.");
+            }
+
             // Extract content after the prompt
-            const userWrittenContent = updatedContent.substring(formattedPrompt.length);
+            const userWrittenContent = contentWithoutLegend.substring(formattedPrompt.length);
 
             // Trim whitespace for comparison and final result
             const trimmedUserWritten = userWrittenContent.trim();
