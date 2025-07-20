@@ -1,0 +1,20 @@
+// tsconfig.electron.json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "outDir": "./dist/electron", // Electron-specific output
+    "rootDir": "./electron_src",  // Electron-specific source
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*"]
+    }
+  },
+  "include": ["electron_src/**/*"],
+  "exclude": ["node_modules", "**/*.test.ts", "src/**/*"]
+}

@@ -2,14 +2,14 @@
   "name": "personal-journal-cli",
   "version": "0.1.0",
   "description": "CLI tool for periodic journaling with AI reflection (Part of Personal Task Management System).",
-  "main": "dist/journal_cli.js",
+  "main": "out/main/index.js",
   "bin": {
-    "journal": "dist/journal_cli.js"
+    "assistant": "dist/assistant_cli.js"
   },
   "scripts": {
-    "build": "tsc",
-    "start": "ts-node src/journal_cli.ts",
-    "dev": "ts-node src/journal_cli.ts",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start:assistant": "ts-node --project tsconfig.cli.json src/assistant_cli.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -25,16 +25,28 @@
   "dependencies": {
     "@google/generative-ai": "^0.15.0",
     "commander": "^12.1.0",
+    "express": "^4.19.2",
+    "googleapis": "^128.0.0",
     "inquirer": "^8.2.4",
     "js-yaml": "^4.1.0",
     "moment": "^2.30.1",
+    "open": "^10.2.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vue": "^3.4.31"
   },
   "devDependencies": {
+    "@types/express": "^4.17.21",
     "@types/inquirer": "^8.2.0",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^20.17.32"
+    "@types/node": "^20.17.32",
+    "@types/open": "^6.0.0",
+    "@vitejs/plugin-vue": "^5.0.5",
+    "electron": "^31.2.1",
+    "electron-builder": "^25.0.3",
+    "electron-vite": "^2.3.0",
+    "vite": "^5.3.3",
+    "vue-tsc": "^2.0.26"
   },
   "engines": {
     "node": ">=18.0.0"

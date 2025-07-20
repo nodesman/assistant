@@ -1,5 +1,40 @@
 // src/types.ts
 
+export interface Project {
+    id: string;
+    title: string;
+    body: string;
+    tasks: Task[];
+}
+
+export interface Task {
+    id: string;
+    title: string;
+    body: string;
+    status: 'To Do' | 'In Progress' | 'Done';
+    estimated_duration_minutes?: number; // Total estimated time for the task
+    min_block_minutes?: number; // Minimum time block for scheduling
+    max_block_minutes?: number; // Maximum time block for scheduling
+    due_date?: string; // YYYY-MM-DD format
+    priority?: 'low' | 'medium' | 'high'; // Task priority
+}
+
+export interface GoogleAuthConfig {
+    client_id?: string;
+    client_secret?: string;
+    redirect_uris?: string[];
+    token_path?: string; // Path to store tokens
+}
+
+// New interface for Google OAuth tokens
+export interface GoogleTokens {
+    access_token: string;
+    refresh_token?: string; // Refresh token might not always be present (e.g., for short-lived access tokens)
+    scope: string;
+    token_type: string;
+    expiry_date: number; // Unix timestamp
+}
+
 export interface JournalConfig {
     journal_directory: string;
     ai: {
@@ -10,6 +45,7 @@ export interface JournalConfig {
         // Add other AI params like temperature if needed
     };
     editor_command: string; // Command to launch the editor
+    google_auth?: GoogleAuthConfig; // Optional Google Auth configuration
 }
 
 // Represents a message in the chat history
@@ -34,12 +70,24 @@ export interface AiClient {
     generateChatResponse(history: ChatMessage[]): Promise<string | null>; // For conversational interaction
 }
 
-// Note: This original JournalEntry structure based on daily files is less relevant
-// in the new directory-per-topic model, but kept for potential reference or future adaptation.
 export interface JournalEntry {
-    topic: string;
+    title: string;
     date: string; // YYYY-MM-DD
     content: string;
-    reflection?: string; // Optional reflection text
-    filePath: string;
+}
+
+// GTD Horizons of Focus
+export interface Purpose {
+    purpose: string;
+    principles: string[];
+}
+
+export interface Goal {
+    title: string;
+    description: string;
+}
+
+export interface Horizons {
+    purpose: Purpose;
+    goals: Goal[];
 }

@@ -54,3 +54,9 @@ UnitTests
 
 # Kai internal files (logs, cache, config) - (auto-added by Kai)
 .kai/
+
+# Electron build output
+out/
+release/
+dist-electron/
+# Other electron-builder artifacts
