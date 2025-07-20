@@ -11,6 +11,8 @@ interface Window {
     getAuthorizedUser: () => Promise<any>;
     removeGoogleAccount: () => Promise<void>;
     onReceiveMessage: (channel: string, func: (...args: any[]) => void) => void;
+    addTask: (projectId: string, task: any) => Promise<void>;
+    updateTask: (taskId: string, task: any) => Promise<void>;
     // Add other methods as needed
   };
 }

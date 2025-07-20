@@ -74,6 +74,17 @@ async function main() {
     ipcMain.handle('authorize-google-account', () => googleAuthService.authorize());
     ipcMain.handle('get-authorized-user', () => googleAuthService.getAuthorizedUser());
     ipcMain.handle('remove-google-account', () => googleAuthService.removeGoogleAccount());
+
+    // Console forwarding IPC handlers
+    ipcMain.on('console-log', (event, ...args) => {
+        console.log('[Renderer]', ...args);
+    });
+    ipcMain.on('console-warn', (event, ...args) => {
+        console.warn('[Renderer]', ...args);
+    });
+    ipcMain.on('console-error', (event, ...args) => {
+        console.error('[Renderer]', ...args);
+    });
 }
 
 main();

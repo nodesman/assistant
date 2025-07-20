@@ -6,6 +6,7 @@ import { spawn } from 'child_process';
 import { Config } from './Config';
 import inquirer from 'inquirer';
 import { AIManager } from './AIManager';
+import { v4 as uuidv4 } from 'uuid';
 
 export class ProjectManager {
     private projectsDir: string;
@@ -383,5 +384,48 @@ body: |-
                 reject(err);
             });
         });
+    }
+
+    async addTask(projectId: string, taskData: Partial<Task>): Promise<void> {
+        const projects = await this.getAllProjects();
+        const project = projects.find(p => p.id === projectId);
+        if (project) {
+            const newTask: Task = {
+                id: uuidv4(),
+                ...taskData,
+            } as Task;
+            project.tasks.push(newTask);
+            await this.saveProject(project);
+        }
+    }
+
+    async updateTask(taskId: string, taskData: Partial<Task>): Promise<void> {
+        const projects = await this.getAllProjects();
+        for (const project of projects) {
+            const taskIndex = project.tasks.findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+                project.tasks[taskIndex] = { ...project.tasks[taskIndex], ...taskData };
+                await this.saveProject(project);
+                return;
+            }
+        }
+    }
+
+    async deleteTask(taskId: string): Promise<void> {
+        const projects = await this.getAllProjects();
+        for (const project of projects) {
+            const taskIndex = project.tasks.findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+                project.tasks.splice(taskIndex, 1);
+                await this.saveProject(project);
+                return;
+            }
+        }
+    }
+
+    private async saveProject(project: Project): Promise<void> {
+        const fileName = `${project.title.toLowerCase().replace(/\s+/g, '_')}.yml`;
+        const filePath = path.join(this.projectsDir, fileName);
+        await fs.writeFile(filePath, yaml.dump(project), 'utf8');
     }
 }
