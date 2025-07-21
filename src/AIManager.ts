@@ -30,8 +30,8 @@ export class AIManager implements AiClient {
                     parameters: {
                         type: "OBJECT",
                         properties: {
-                            startDate: { type: "STRING", description: "The start date in ISO 8601 format. Defaults to the beginning of the current day if not specified." },
-                            endDate: { type: "STRING", description: "The end date in ISO 8601 format. Defaults to the end of the current day if not specified." },
+                            startDate: { type: "STRING", description: "The start date in ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ). Defaults to the beginning of the current day if not specified." },
+                            endDate: { type: "STRING", description: "The end date in ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ). Defaults to the end of the current day if not specified." },
                         },
                         required: [],
                     },

@@ -101,8 +101,8 @@ const handleConfirmation = async (isConfirmed: boolean, data?: any) => {
 };
 
 const getContext = async () => {
-  // This can be re-enabled for general chat context later
-  return "General context";
+  const today = new Date().toISOString().slice(0, 10);
+  return `Today's date is ${today}.`;
 };
 
 onMounted(() => {

@@ -1,44 +1,28 @@
-### KANBAN.md
+# Kanban Board
 
----
+## To Do
 
-### **To Do**
+- [ ] **Bug: Calendar events for future dates are not being fetched.**
+  - **Description:** The chat interface is not displaying calendar events that occur in the future, even when the date range provided to the `get_calendar_events` function is correct.
+  - **Context:**
+    - The user has confirmed that events exist in the calendar for future dates.
+    - The date format for the function call was recently updated.
+  - **Next Steps:**
+    1. Investigate the `get_calendar_events` function logic in `AIManager.ts` and `CalendarManager.ts`.
+    2. Trace how `startDate` and `endDate` are processed and formatted.
+    3. Add logging to see the exact date range being sent to the Google Calendar API.
+    4. Verify the API response and any potential errors.
 
-*   [ ] **Implement Multi-Calendar Support:**
-    *   [ ] Fetch and display all available calendars from connected accounts.
-    *   [ ] Add a calendar list with visibility toggles and color-coding.
-    *   [ ] Add a "Calendar" dropdown to the "Create Event" dialog.
-    *   [ ] Display the source calendar in the "Edit Event" dialog.
-*   [ ] **Implement Function Calling for Context-Aware Chat:**
-*   [ ] **Implement Full Calendar View:**
+- [ ] Refactor ProjectManager to use the new DatabaseManager.
+- [ ] Implement recurring tasks feature.
+- [ ] Add support for multiple timezones in the Calendar view.
 
-### **In Progress**
+## In Progress
 
-*   [ ] **Implement Conversational Import from Text:**
-    *   [x] Create a new `TextParser.ts` manager.
-    *   [x] Create a `ConfirmationDialog.vue` component with accordions and tooltips.
-    *   [ ] Implement the real text parsing flow in the chat UI.
-        *   [x] Render model responses as Markdown.
-        *   [x] Add visual differentiation for user, model, and system messages.
-        *   [x] Fix build errors in `TextParser.ts` to enable UI functionality.
-    *   [ ] Implement the backend logic for mass import.
-*   [ ] **Architectural Shift: Migrate to SQLite Database:**
-    *   [x] Install `sqlite3` and `knex` libraries.
-    *   [x] Create a new `DatabaseManager`.
-    *   [x] Define and create the database schema.
-    *   [x] Implement a one-time migration script.
-    *   [x] Refactor managers to use the `DatabaseManager`.
+- [ ] Design the initial UI for the Horizons feature.
 
-### **Done**
-*   [x] Implemented Rich-Text Task Management.
-*   [x] Implemented Google Auth Flow.
-*   [x] Migrated project to Electron + Vue.
-*   [x] Created UI Shell with tabbed navigation.
-*   [x] Implemented "Projects" tab.
-*   [x] Implemented "Goals" tab (Read-only).
-*   [x] Implemented "Journal" tab (Read-only).
-*   [x] Implemented "Chat" tab.
-*   [x] Set up Kanban Board.
-*   [x] Bridged Frontend & Backend.
+## Done
 
----
+- [x] **Fix: LLM does not have current date for context.**
+- [x] Implement basic Google Calendar integration.
+- [x] Create initial project and task management UI.

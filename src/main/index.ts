@@ -81,7 +81,10 @@ async function main() {
     ipcMain.handle('create-calendar-event', (event, eventBody, calendarId) => calendarManager.createCalendarEvent(eventBody, calendarId));
     ipcMain.handle('update-calendar-event', (event, eventId, eventBody, calendarId) => calendarManager.updateCalendarEvent(eventId, eventBody, calendarId));
     ipcMain.handle('delete-calendar-event', (event, eventId, calendarId) => calendarManager.deleteCalendarEvent(eventId, calendarId));
-    ipcMain.handle('generate-chat-response', (event, context, message) => aiManager.generateChatResponse([{role: 'user', content: `${context}\n\n${message}`}]));
+    ipcMain.handle('generate-chat-response', (event, context, message) => aiManager.generateChatResponse([
+        {role: 'system', content: context},
+        {role: 'user', content: message}
+    ]));
     ipcMain.handle('authorize-google-account', () => googleAuthService.authorize());
     ipcMain.handle('get-authorized-user', () => googleAuthService.getAuthorizedUser());
     ipcMain.handle('remove-google-account', () => googleAuthService.removeGoogleAccount());
