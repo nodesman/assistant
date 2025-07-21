@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('api', {
   createJournalEntry: (entry) => ipcRenderer.invoke('create-journal-entry', entry),
   getGoals: () => ipcRenderer.invoke('get-goals'),
   getCalendarEvents: () => ipcRenderer.invoke('get-calendar-events'),
+  createCalendarEvent: (task, startTime, endTime) => ipcRenderer.invoke('create-calendar-event', task, startTime, endTime),
   generateChatResponse: (context, message) => ipcRenderer.invoke('generate-chat-response', context, message),
   authorizeGoogleAccount: () => ipcRenderer.invoke('authorize-google-account'),
   getAuthorizedUser: () => ipcRenderer.invoke('get-authorized-user'),
@@ -21,6 +22,8 @@ contextBridge.exposeInMainWorld('api', {
   onReceiveMessage: (channel, func) => {
     ipcRenderer.on(channel, (event, ...args) => func(...args));
   },
+  parseTextForProjects: (text) => ipcRenderer.invoke('parse-text-for-projects', text),
+  importParsedProjects: (data) => ipcRenderer.invoke('import-parsed-projects', data),
 });
 
 // --- Forward Renderer Console Logs to Main Process ---

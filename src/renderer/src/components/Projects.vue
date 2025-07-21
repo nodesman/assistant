@@ -7,8 +7,10 @@
       <p>{{ project.body }}</p>
       <button @click="openAddTaskModal(project.id)">Add Task</button>
       <ul>
-        <li v-for="task in project.tasks" :key="task.id" @click="openEditTaskModal(task)">
+        <li v-for="task in project.tasks" :key="task.id">
           {{ task.title }} - {{ task.status }}
+          <button @click="openEditTaskModal(task)">Edit</button>
+          <button @click="deleteTask(task.id)">Delete</button>
         </li>
       </ul>
     </div>
@@ -72,13 +74,23 @@ const closeModal = () => {
 };
 
 const saveTask = async () => {
+  // Convert the reactive Vue object to a plain JavaScript object before sending
+  const taskData = { ...taskForm.value };
+
   if (editingTask.value) {
-    await window.api.updateTask(editingTask.value.id, taskForm.value);
+    await window.api.updateTask(editingTask.value.id, taskData);
   } else {
-    await window.api.addTask(currentProjectId.value, taskForm.value);
+    await window.api.addTask(currentProjectId.value, taskData);
   }
   fetchProjects();
   closeModal();
+};
+
+const deleteTask = async (taskId: string) => {
+  if (confirm('Are you sure you want to delete this task?')) {
+    await window.api.deleteTask(taskId);
+    fetchProjects();
+  }
 };
 
 onMounted(() => {
@@ -91,6 +103,9 @@ onMounted(() => {
   border: 1px solid #ccc;
   padding: 10px;
   margin-bottom: 10px;
+}
+li {
+  margin-bottom: 5px;
 }
 .modal {
   position: fixed;

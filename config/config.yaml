@@ -2,7 +2,7 @@
 journal_directory: "~/.personal_system/journal_entries" # Specific, fixed location
 ai:
   # provider: "google" # or "openai"
-  model: "gemini-1.5-flash-latest"
+  model: "gemini-2.5-pro"
   api_key_env_var: "GOOGLE_API_KEY" # Or specific key for this tool
   # The main AI interaction prompt is now handled internally by the structuring workflow logic in JournalManager.ts.
   # The old 'reflection_prompt' is no longer used by the primary '/integrate' workflow.

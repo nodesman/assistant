@@ -4,6 +4,7 @@
       <button @click="activeTab = 'Goals'">Goals</button>
       <button @click="activeTab = 'Projects'">Projects</button>
       <button @click="activeTab = 'Journal'">Journal</button>
+      <button @click="activeTab = 'Calendar'">Calendar</button>
       <button @click="activeTab = 'Chat'">Chat</button>
       <button @click="activeTab = 'Settings'">Settings</button>
     </nav>
@@ -18,6 +19,7 @@ import { ref, computed, onMounted } from 'vue';
 import Goals from './components/Goals.vue';
 import Projects from './components/Projects.vue';
 import Journal from './components/Journal.vue';
+import Calendar from './components/Calendar.vue';
 import Chat from './components/ChatInterface.vue';
 import Settings from './components/Settings.vue';
 
@@ -31,6 +33,8 @@ const activeComponent = computed(() => {
       return Projects;
     case 'Journal':
       return Journal;
+    case 'Calendar':
+      return Calendar;
     case 'Chat':
       return Chat;
     case 'Settings':

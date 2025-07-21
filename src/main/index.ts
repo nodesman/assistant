@@ -8,6 +8,8 @@ import { HorizonsManager } from '../HorizonsManager';
 import { JournalManager } from '../JournalManager';
 import { Config } from '../Config';
 import { GoogleAuthService } from '../GoogleAuthService';
+import { DatabaseManager } from '../DatabaseManager';
+import { TextParser } from '../TextParser';
 
 // Define the development server URL
 const VITE_DEV_SERVER_URL = 'http://localhost:5173';
@@ -15,8 +17,13 @@ const VITE_DEV_SERVER_URL = 'http://localhost:5173';
 async function main() {
     // Instantiate managers
     const config = await Config.getInstance();
-    const projectManager = new ProjectManager(config);
+    const dbManager = new DatabaseManager(config);
+    await dbManager.init();
+    await dbManager.migrateFromYaml();
+
+    const projectManager = new ProjectManager(dbManager);
     const aiManager = new AIManager(config.get().ai);
+    const textParser = new TextParser(aiManager);
     const googleAuthService = new GoogleAuthService(config);
     const calendarManager = new CalendarManager(config);
     const horizonsManager = new HorizonsManager(config);
@@ -70,10 +77,32 @@ async function main() {
     ipcMain.handle('get-goals', () => horizonsManager.getHorizons());
     ipcMain.handle('get-journal-entries', () => journalManager.getAllEntries());
     ipcMain.handle('get-calendar-events', () => calendarManager.getCalendarEvents());
+    ipcMain.handle('create-calendar-event', (event, task, startTime, endTime) => calendarManager.createCalendarEvent(task, startTime, endTime));
     ipcMain.handle('generate-chat-response', (event, context, message) => aiManager.generateChatResponse([{role: 'user', content: `${context}\n\n${message}`}]));
     ipcMain.handle('authorize-google-account', () => googleAuthService.authorize());
     ipcMain.handle('get-authorized-user', () => googleAuthService.getAuthorizedUser());
     ipcMain.handle('remove-google-account', () => googleAuthService.removeGoogleAccount());
+
+    // Task IPC Handlers
+    ipcMain.handle('add-task', (event, projectId, task) => projectManager.addTask(projectId, task));
+    ipcMain.handle('update-task', (event, taskId, task) => projectManager.updateTask(taskId, task));
+    ipcMain.handle('delete-task', (event, taskId) => projectManager.deleteTask(taskId));
+
+    // Text Parsing IPC Handlers
+    ipcMain.handle('parse-text-for-projects', (event, text) => textParser.parseText(text));
+    ipcMain.handle('import-parsed-projects', async (event, data) => {
+        for (const projectData of data.projects) {
+            await projectManager.createProject(projectData);
+        }
+        // This is a simplified import. A more robust version would associate tasks with the newly created projects.
+        for (const taskData of data.tasks) {
+            const projects = await projectManager.getAllProjects();
+            const project = projects.find(p => p.title === taskData.projectName);
+            if (project) {
+                await projectManager.addTask(project.id, taskData);
+            }
+        }
+    });
 
     // Console forwarding IPC handlers
     ipcMain.on('console-log', (event, ...args) => {

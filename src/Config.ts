@@ -65,7 +65,7 @@ export class Config {
             if (userConfig.journal_directory) {
                 userConfig.journal_directory = this.expandTilde(userConfig.journal_directory);
             }
-        } catch (error) {
+        } catch (error: any) {
             // Ignore ENOENT, handle other errors
             if (error.code !== 'ENOENT') {
                 console.error(`Error reading user config file:`, error);

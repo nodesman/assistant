@@ -50,7 +50,7 @@ export interface JournalConfig {
 
 // Represents a message in the chat history
 export interface ChatMessage {
-    role: 'user' | 'model'; // Standard roles for chat models
+    role: 'user' | 'model' | 'system'; // Standard roles for chat models
     content: string;
 }
 

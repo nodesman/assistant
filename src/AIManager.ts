@@ -124,17 +124,19 @@ export class AIManager implements AiClient {
      * @param history An array of ChatMessage objects representing the conversation.
      * @returns The AI's response text or null if an error occurs.
      */
-    async generateChatResponse(history: ChatMessage[]): Promise<string | null> {
+    async generateChatResponse(history: ChatMessage[], modelName?: string): Promise<string | null> {
         if (!this.googleAI) {
             throw new Error("AI client not initialized correctly.");
         }
 
         // Map our ChatMessage format to the format expected by the Google AI SDK's chat history
         // Ensure role names match SDK ('model' is correct for Gemini)
-        const googleChatHistory = history.map(msg => ({
-            role: msg.role,
-            parts: [{ text: msg.content }]
-        }));
+        const googleChatHistory = history
+            .filter(msg => msg.role !== 'system') // Filter out system messages
+            .map(msg => ({
+                role: msg.role,
+                parts: [{ text: msg.content }]
+            }));
 
         // Extract the latest user message to send
         const lastUserMessage = googleChatHistory.pop(); // History now contains context *before* the last user message
@@ -147,9 +149,10 @@ export class AIManager implements AiClient {
         const currentMessageContent = lastUserMessage.parts[0].text;
 
         try {
-            console.log(`Sending chat request to AI model (${this.config.model})...`);
+            const modelToUse = modelName || this.config.model;
+            console.log(`Sending chat request to AI model (${modelToUse})...`);
             const model = this.googleAI.getGenerativeModel({
-                 model: this.config.model,
+                 model: modelToUse,
                  // Define safety settings for chat as well
                  safetySettings: [
                      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },

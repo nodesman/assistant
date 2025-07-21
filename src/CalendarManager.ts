@@ -74,6 +74,7 @@ export class CalendarManager {
         endTime: string,
         calendarId: string = 'primary'
     ): Promise<any> {
+        console.log('Creating calendar event with task:', task);
         const calendar = await this.getCalendarClient();
         try {
             const event = {
@@ -82,6 +83,7 @@ export class CalendarManager {
                 start: { dateTime: startTime, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
                 end: { dateTime: endTime, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
             };
+            console.log('Sending event to Google Calendar:', event);
             const response = await calendar.events.insert({
                 calendarId,
                 requestBody: event,

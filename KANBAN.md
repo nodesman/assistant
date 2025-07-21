@@ -5,33 +5,31 @@
 ### **To Do**
 
 *   [ ] **Implement Function Calling for Context-Aware Chat:**
-    *   [ ] Define a clear schema for the available tools (`getCalendarEvents`, `findProject`, etc.).
-    *   [ ] Update `AIManager` to include the tool definitions in its prompts.
-    *   [ ] Update the `generate-chat-response` IPC handler in `main.ts` to handle function-calling responses from the AI.
-    *   [ ] Implement the logic in `main.ts` to execute the requested functions and send the results back to the AI.
-    *   [ ] Add a loading indicator in the Chat UI while the AI is "using" a tool.
 *   [ ] **Implement Full Calendar View:**
-    *   [ ] Create a dedicated "Calendar" tab.
-    *   [ ] Display a full month/week/day view of the user's Google Calendar.
-*   [ ] **Implement "Projects" Tab (CRUD):**
-    *   [ ] Add functionality to create, edit, and delete projects and tasks.
-*   [ ] **Implement "Goals" Tab (CRUD):**
-*   [ ] **Implement "Journal" Tab (CRUD):**
 
 ### **In Progress**
 
-*   [ ] **Implement Google Auth Flow:**
-    *   [x] Create a "Settings" tab in the UI.
-    *   [x] On first run, direct the user to the Settings tab to authorize their account.
-    *   [x] Display the authorized user's name and email on the Settings page.
-    *   [x] Add a button to remove the current Google account.
-    *   [x] Add a button to authorize a new Google account.
+*   [ ] **Implement Conversational Import from Text:**
+    *   [x] Create a new `TextParser.ts` manager.
+    *   [x] Create a `ConfirmationDialog.vue` component with accordions and tooltips.
+    *   [ ] Implement the real text parsing flow in the chat UI.
+        *   [x] Render model responses as Markdown.
+        *   [x] Add visual differentiation for user, model, and system messages.
+        *   [x] Fix build errors in `TextParser.ts` to enable UI functionality.
+    *   [ ] Implement the backend logic for mass import.
+*   [ ] **Architectural Shift: Migrate to SQLite Database:**
+    *   [x] Install `sqlite3` and `knex` libraries.
+    *   [x] Create a new `DatabaseManager`.
+    *   [x] Define and create the database schema.
+    *   [x] Implement a one-time migration script.
+    *   [x] Refactor managers to use the `DatabaseManager`.
 
 ### **Done**
-
+*   [x] Implemented Rich-Text Task Management.
+*   [x] Implemented Google Auth Flow.
 *   [x] Migrated project to Electron + Vue.
 *   [x] Created UI Shell with tabbed navigation.
-*   [x] Implemented "Projects" tab (Read-only).
+*   [x] Implemented "Projects" tab.
 *   [x] Implemented "Goals" tab (Read-only).
 *   [x] Implemented "Journal" tab (Read-only).
 *   [x] Implemented "Chat" tab.

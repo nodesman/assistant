@@ -13,6 +13,9 @@ interface Window {
     onReceiveMessage: (channel: string, func: (...args: any[]) => void) => void;
     addTask: (projectId: string, task: any) => Promise<void>;
     updateTask: (taskId: string, task: any) => Promise<void>;
+    deleteTask: (taskId: string) => Promise<void>;
+    parseTextForProjects: (text: string) => Promise<any>;
+    importParsedProjects: (data: any) => Promise<void>;
     // Add other methods as needed
   };
 }
