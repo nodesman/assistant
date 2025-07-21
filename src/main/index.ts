@@ -22,10 +22,10 @@ async function main() {
     await dbManager.migrateFromYaml();
 
     const projectManager = new ProjectManager(dbManager);
-    const aiManager = new AIManager(config.get().ai);
+    const calendarManager = new CalendarManager(config);
+    const aiManager = new AIManager(config.get().ai, calendarManager);
     const textParser = new TextParser(aiManager);
     const googleAuthService = new GoogleAuthService(config);
-    const calendarManager = new CalendarManager(config);
     const horizonsManager = new HorizonsManager(config);
     const journalManager = new JournalManager(config);
 

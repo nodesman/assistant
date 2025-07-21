@@ -76,8 +76,8 @@ const fetchEvents = async () => {
     }
 
     events.value = await window.api.getCalendarEvents(
-      start.toISOString(),
-      end.toISOString(),
+      start.format(),
+      end.format(),
       [...visibleCalendars.value]
     );
   } catch (error) {
