@@ -15,6 +15,10 @@
         </div>
         <div class="header-right">
           <ViewSwitcher :current-view="activeViewName" @view-changed="handleViewChanged" />
+          <button @click="fetchEvents" class="icon-button refresh-button" :class="{ 'loading': isFetching }" title="Refresh Events" :disabled="isFetching">
+            <span v-if="isFetching" class="spinner"></span>
+            <span v-else>↻</span>
+          </button>
         </div>
       </div>
       <div class="calendar-content-area">
@@ -22,7 +26,7 @@
           <div class="calendar-sidebar" v-if="!isMiniCalendarCollapsed">
             <MiniCalendar :selected-date="currentDate" @date-selected="handleDateSelected" />
             <hr>
-            <CalendarList :visible-calendars="visibleCalendars" @visibility-changed="handleCalendarVisibilityChanged" />
+            <CalendarList :calendars="calendars" :visible-calendars="visibleCalendars" @visibility-changed="handleCalendarVisibilityChanged" />
           </div>
         </div>
         <component :is="activeView" :events="events" :current-date="currentDate" @event-modified="fetchEvents" />
@@ -32,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import moment from 'moment';
 import MiniCalendar from './MiniCalendar.vue';
 import ViewSwitcher from './ViewSwitcher.vue';
@@ -45,33 +49,54 @@ const events = ref([]);
 const currentDate = ref(moment());
 const activeViewName = ref('Month');
 const isMiniCalendarCollapsed = ref(true);
+const calendars = ref<any[]>([]);
 const visibleCalendars = ref<string[]>([]);
+const isFetching = ref(false);
 
 const fetchEvents = async () => {
   if (visibleCalendars.value.length === 0) {
     events.value = [];
     return;
   }
+  isFetching.value = true;
+  try {
+    let start, end;
+    const view = activeViewName.value;
+    const date = currentDate.value;
 
-  let start, end;
-  const view = activeViewName.value;
-  const date = currentDate.value;
+    if (view === 'Month') {
+      start = date.clone().startOf('month').startOf('week');
+      end = date.clone().endOf('month').endOf('week');
+    } else if (view === 'Week') {
+      start = date.clone().startOf('week');
+      end = date.clone().endOf('week');
+    } else {
+      start = date.clone().startOf('day');
+      end = date.clone().endOf('day');
+    }
 
-  if (view === 'Month') {
-    start = date.clone().startOf('month').startOf('week');
-    end = date.clone().endOf('month').endOf('week');
-  } else if (view === 'Week') {
-    start = date.clone().startOf('week');
-    end = date.clone().endOf('week');
-  } else { // Day view
-    start = date.clone().startOf('day');
-    end = date.clone().endOf('day');
+    events.value = await window.api.getCalendarEvents(
+      start.toISOString(),
+      end.toISOString(),
+      [...visibleCalendars.value]
+    );
+  } catch (error) {
+    console.error('Failed to fetch calendar events:', error);
+  } finally {
+    isFetching.value = false;
   }
-
-  events.value = await window.api.getCalendarEvents(start.toISOString(), end.toISOString(), visibleCalendars.value);
 };
 
-// Watch for changes in the view, date, or visible calendars and refetch events
+// Fetch calendar list on mount, then refetch events whenever inputs change
+onMounted(async () => {
+  try {
+    const list = await window.api.getCalendarList();
+    calendars.value = list;
+    visibleCalendars.value = list.map(cal => cal.id);
+  } catch (error) {
+    console.error('Failed to fetch calendar list on mount:', error);
+  }
+});
 watch([currentDate, activeViewName, visibleCalendars], fetchEvents, { immediate: true });
 
 const activeView = computed(() => {
@@ -169,6 +194,16 @@ const next = () => {
 .icon-button:hover {
   background-color: #f0f0f0;
 }
+.icon-button:disabled {
+  cursor: not-allowed;
+  color: #ccc;
+}
+.refresh-button {
+  border: 1px solid #e0e0e0;
+}
+.refresh-button.loading span {
+  font-size: 16px;
+}
 .calendar-toggle-btn {
   border: 1px solid #e0e0e0;
 }
@@ -222,5 +257,16 @@ hr {
   border: none;
   border-top: 1px solid #eee;
   margin: 10px 0;
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ccc;
+  border-top-color: #888;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
