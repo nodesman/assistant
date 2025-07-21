@@ -19,17 +19,57 @@ export class CalendarManager {
         return this.calendar;
     }
 
-    async getCalendarEvents(timeMin: string, timeMax: string, calendarId: string = 'primary'): Promise<any[]> {
+    async getCalendarList(): Promise<any[]> {
         const calendar = await this.getCalendarClient();
         try {
-            const response = await calendar.events.list({
-                calendarId,
-                timeMin,
-                timeMax,
-                singleEvents: true,
-                orderBy: 'startTime',
-            });
+            const response = await calendar.calendarList.list({});
             return response.data.items;
+        } catch (error) {
+            console.error('Error fetching calendar list:', error);
+            throw error;
+        }
+    }
+
+    async getCalendarEvents(timeMin: string, timeMax: string, calendarIds: string[]): Promise<any[]> {
+        if (!calendarIds || calendarIds.length === 0) {
+            return [];
+        }
+        const calendar = await this.getCalendarClient();
+        const allEvents = [];
+
+        // First, get the details of all calendars to access their colors
+        const calendarList = await this.getCalendarList();
+        const calendarDetailsMap = new Map(calendarList.map(cal => [cal.id, cal]));
+
+        try {
+            for (const calendarId of calendarIds) {
+                const calendarInfo = calendarDetailsMap.get(calendarId);
+                if (!calendarInfo) continue;
+
+                const response = await calendar.events.list({
+                    calendarId,
+                    timeMin,
+                    timeMax,
+                    singleEvents: true,
+                    orderBy: 'startTime',
+                });
+
+                if (response.data.items) {
+                    const eventsWithColor = response.data.items.map(event => ({
+                        ...event,
+                        calendarId: calendarId,
+                        color: calendarInfo.backgroundColor, // Inject calendar color
+                    }));
+                    allEvents.push(...eventsWithColor);
+                }
+            }
+            // Sort all collected events by start time
+            allEvents.sort((a, b) => {
+                const timeA = new Date(a.start.dateTime || a.start.date).getTime();
+                const timeB = new Date(b.start.dateTime || b.start.date).getTime();
+                return timeA - timeB;
+            });
+            return allEvents;
         } catch (error) {
             console.error('Error fetching calendar events:', error);
             throw error;

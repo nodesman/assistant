@@ -4,6 +4,11 @@
 
 ### **To Do**
 
+*   [ ] **Implement Multi-Calendar Support:**
+    *   [ ] Fetch and display all available calendars from connected accounts.
+    *   [ ] Add a calendar list with visibility toggles and color-coding.
+    *   [ ] Add a "Calendar" dropdown to the "Create Event" dialog.
+    *   [ ] Display the source calendar in the "Edit Event" dialog.
 *   [ ] **Implement Function Calling for Context-Aware Chat:**
 *   [ ] **Implement Full Calendar View:**
 

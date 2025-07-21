@@ -21,6 +21,8 @@
         <div class="calendar-sidebar-container">
           <div class="calendar-sidebar" v-if="!isMiniCalendarCollapsed">
             <MiniCalendar :selected-date="currentDate" @date-selected="handleDateSelected" />
+            <hr>
+            <CalendarList :visible-calendars="visibleCalendars" @visibility-changed="handleCalendarVisibilityChanged" />
           </div>
         </div>
         <component :is="activeView" :events="events" :current-date="currentDate" @event-modified="fetchEvents" />
@@ -37,13 +39,20 @@ import ViewSwitcher from './ViewSwitcher.vue';
 import MonthView from './MonthView.vue';
 import WeekView from './WeekView.vue';
 import DayView from './DayView.vue';
+import CalendarList from './CalendarList.vue';
 
 const events = ref([]);
 const currentDate = ref(moment());
 const activeViewName = ref('Month');
 const isMiniCalendarCollapsed = ref(true);
+const visibleCalendars = ref<string[]>([]);
 
 const fetchEvents = async () => {
+  if (visibleCalendars.value.length === 0) {
+    events.value = [];
+    return;
+  }
+
   let start, end;
   const view = activeViewName.value;
   const date = currentDate.value;
@@ -59,11 +68,11 @@ const fetchEvents = async () => {
     end = date.clone().endOf('day');
   }
 
-  events.value = await window.api.getCalendarEvents(start.toISOString(), end.toISOString());
+  events.value = await window.api.getCalendarEvents(start.toISOString(), end.toISOString(), visibleCalendars.value);
 };
 
-// Watch for changes in the view or date and refetch events
-watch([currentDate, activeViewName], fetchEvents, { immediate: true });
+// Watch for changes in the view, date, or visible calendars and refetch events
+watch([currentDate, activeViewName, visibleCalendars], fetchEvents, { immediate: true });
 
 const activeView = computed(() => {
   switch (activeViewName.value) {
@@ -101,11 +110,14 @@ const toggleMiniCalendar = () => {
 
 const handleDateSelected = (date) => {
   currentDate.value = date;
-  isMiniCalendarCollapsed.value = true; // Auto-close on selection
 };
 
 const handleViewChanged = (view) => {
   activeViewName.value = view;
+};
+
+const handleCalendarVisibilityChanged = (newVisibleCalendars) => {
+  visibleCalendars.value = newVisibleCalendars;
 };
 
 const prev = () => {
@@ -204,5 +216,11 @@ const next = () => {
   background: white;
   box-shadow: 0 5px 15px rgba(0,0,0,0.15);
   border-radius: 8px;
+  padding: 5px;
+}
+hr {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 10px 0;
 }
 </style>

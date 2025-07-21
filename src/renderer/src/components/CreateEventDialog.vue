@@ -3,6 +3,14 @@
     <div class="dialog-content">
       <h2>Create New Event</h2>
       <div class="form-group">
+        <label>Calendar</label>
+        <select v-model="selectedCalendar">
+          <option v-for="calendar in calendars" :key="calendar.id" :value="calendar.id">
+            {{ calendar.summary }}
+          </option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>Project (Optional)</label>
         <select v-model="selectedProject" @change="handleProjectChange">
           <option value="">None</option>
@@ -60,6 +68,7 @@ import GenericConfirmationDialog from './GenericConfirmationDialog.vue';
 const props = defineProps({
   startTime: Object,
   endTime: Object,
+  calendars: Array,
 });
 
 const emit = defineEmits(['confirm', 'cancel']);
@@ -67,6 +76,7 @@ const emit = defineEmits(['confirm', 'cancel']);
 const projects = ref([]);
 const selectedProject = ref('');
 const selectedTask = ref('');
+const selectedCalendar = ref('');
 const eventDetails = ref({
   summary: '',
   description: '',
@@ -79,6 +89,11 @@ const duration = ref(moment(props.endTime).diff(moment(props.startTime)));
 
 onMounted(async () => {
   projects.value = await window.api.getProjects();
+  if (props.calendars.length > 0) {
+    // Default to the primary calendar if it exists, otherwise the first one.
+    const primary = props.calendars.find(c => c.primary);
+    selectedCalendar.value = primary ? primary.id : props.calendars[0].id;
+  }
 });
 
 const availableTasks = computed(() => {
@@ -137,7 +152,7 @@ const handleConfirm = () => {
     start: { dateTime: moment(localStartTime.value).toISOString() },
     end: { dateTime: moment(localEndTime.value).toISOString() },
   };
-  emit('confirm', eventData);
+  emit('confirm', eventData, selectedCalendar.value);
   showConfirmation.value = false;
 };
 

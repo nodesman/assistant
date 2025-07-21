@@ -24,6 +24,7 @@
       v-if="showCreateDialog"
       :start-time="selection.startTime"
       :end-time="selection.endTime"
+      :calendars="calendars"
       @confirm="handleDialogConfirm"
       @cancel="handleDialogCancel"
     />
@@ -50,6 +51,7 @@ const props = defineProps({
 
 const emit = defineEmits(['event-modified']);
 
+const calendars = ref([]);
 const selection = ref({
   active: false,
   startY: 0,
@@ -62,6 +64,15 @@ const showEditDialog = ref(false);
 const selectedEvent = ref(null);
 const dropTarget = ref({ visible: false, y: 0, height: 0 });
 const dragData = ref(null); // For visual feedback data
+
+onMounted(async () => {
+  calendars.value = await window.api.getCalendarList();
+  window.addEventListener('keydown', handleEscKey);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscKey);
+});
 
 const dayEvents = computed(() => {
   return props.events.filter(event => moment(event.start.dateTime).isSame(props.currentDate, 'day'));
@@ -76,9 +87,25 @@ const getEventStyle = (event) => {
   const end = moment(event.end.dateTime);
   const top = start.hours() * 60 + start.minutes();
   const duration = end.diff(start, 'minutes');
+
+  // Helper function to lighten a hex color
+  const lightenColor = (color, percent) => {
+    const num = parseInt(color.replace("#",""), 16),
+      amt = Math.round(2.55 * percent),
+      R = (num >> 16) + amt,
+      G = (num >> 8 & 0x00FF) + amt,
+      B = (num & 0x0000FF) + amt;
+    return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
+  };
+
+  const backgroundColor = event.color || '#89cff0'; // Default color if none is provided
+  const borderColor = lightenColor(backgroundColor, -20); // Darken by 20%
+
   return {
     top: `${top}px`,
     height: `${duration}px`,
+    backgroundColor: backgroundColor,
+    borderLeftColor: borderColor,
   };
 };
 
@@ -129,9 +156,9 @@ const handleMouseUp = () => {
   showCreateDialog.value = true;
 };
 
-const handleDialogConfirm = async (eventData) => {
+const handleDialogConfirm = async (eventData, calendarId) => {
   try {
-    await window.api.createCalendarEvent(eventData);
+    await window.api.createCalendarEvent(eventData, calendarId);
     showCreateDialog.value = false;
     emit('event-modified');
   } catch (error) {
@@ -150,7 +177,7 @@ const handleEventClick = (event) => {
 
 const handleEditConfirm = async (updatedEvent) => {
   try {
-    await window.api.updateCalendarEvent(updatedEvent.id, updatedEvent);
+    await window.api.updateCalendarEvent(updatedEvent.id, updatedEvent, updatedEvent.calendarId);
     showEditDialog.value = false;
     emit('event-modified');
   } catch (error) {
@@ -164,7 +191,7 @@ const handleEditCancel = () => {
 
 const handleDeleteConfirm = async (eventId) => {
   try {
-    await window.api.deleteCalendarEvent(eventId);
+    await window.api.deleteCalendarEvent(eventId, selectedEvent.value.calendarId);
     showEditDialog.value = false;
     emit('event-modified');
   } catch (error) {

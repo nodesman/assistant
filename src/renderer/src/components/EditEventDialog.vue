@@ -3,6 +3,10 @@
     <div class="dialog-content">
       <h2>Edit Event</h2>
       <div class="form-group">
+        <label>Calendar</label>
+        <input type="text" :value="editableEvent.calendarId" disabled />
+      </div>
+      <div class="form-group">
         <label>Project</label>
         <select v-model="selectedProject" @change="handleProjectChange">
           <option value="">None</option>
