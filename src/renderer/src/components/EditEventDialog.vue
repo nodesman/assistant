@@ -1,9 +1,9 @@
 <template>
   <div class="dialog-overlay" @mousedown.stop @click.stop>
     <div class="dialog-content">
-      <h2>Create New Event</h2>
+      <h2>Edit Event</h2>
       <div class="form-group">
-        <label>Project (Optional)</label>
+        <label>Project</label>
         <select v-model="selectedProject" @change="handleProjectChange">
           <option value="">None</option>
           <option v-for="project in projects" :key="project.id" :value="project.id">
@@ -12,7 +12,7 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Task (Optional)</label>
+        <label>Task</label>
         <select v-model="selectedTask">
           <option value="">None</option>
           <option v-for="task in availableTasks" :key="task.id" :value="task.id">
@@ -20,25 +20,25 @@
           </option>
         </select>
       </div>
-      <hr />
       <div class="form-group">
         <label>Summary</label>
-        <input type="text" v-model="eventDetails.summary" placeholder="Event Title" />
+        <input type="text" v-model="editableEvent.summary" />
       </div>
       <div class="form-group">
         <label>Description</label>
-        <textarea v-model="eventDetails.description" placeholder="Event Details"></textarea>
+        <textarea v-model="editableEvent.description"></textarea>
       </div>
       <div class="form-group">
         <label>Start Time</label>
-        <input type="text" :value="formatTime(startTime)" readonly />
+        <input type="datetime-local" v-model="editableEvent.start.dateTime" />
       </div>
       <div class="form-group">
         <label>End Time</label>
-        <input type="text" :value="formatTime(endTime)" readonly />
+        <input type="datetime-local" v-model="editableEvent.end.dateTime" />
       </div>
       <div class="dialog-actions">
-        <button @click="handleConfirm" :disabled="!eventDetails.summary">Create Event</button>
+        <button class="delete-btn" @click="handleDelete">Delete</button>
+        <button @click="handleConfirm">Update Event</button>
         <button @click="handleCancel">Cancel</button>
       </div>
     </div>
@@ -50,22 +50,24 @@ import { ref, onMounted, computed, watch, defineEmits, defineProps } from 'vue';
 import moment from 'moment';
 
 const props = defineProps({
-  startTime: Object,
-  endTime: Object,
+  event: Object,
 });
 
-const emit = defineEmits(['confirm', 'cancel']);
+const emit = defineEmits(['confirm', 'cancel', 'delete']);
 
 const projects = ref([]);
 const selectedProject = ref('');
 const selectedTask = ref('');
-const eventDetails = ref({
-  summary: '',
-  description: '',
-});
+const editableEvent = ref(JSON.parse(JSON.stringify(props.event)));
+
+// Convert to a format suitable for datetime-local input
+editableEvent.value.start.dateTime = moment(editableEvent.value.start.dateTime).format('YYYY-MM-DDTHH:mm');
+editableEvent.value.end.dateTime = moment(editableEvent.value.end.dateTime).format('YYYY-MM-DDTHH:mm');
 
 onMounted(async () => {
   projects.value = await window.api.getProjects();
+  // Note: We can't reliably determine the project/task from the event,
+  // as this information is not stored in Google Calendar.
 });
 
 const availableTasks = computed(() => {
@@ -78,31 +80,25 @@ watch(selectedTask, (newTaskId) => {
   if (newTaskId) {
     const task = availableTasks.value.find(t => t.id === newTaskId);
     if (task) {
-      eventDetails.value.summary = task.title;
-      eventDetails.value.description = task.body;
+      editableEvent.value.summary = task.title;
+      editableEvent.value.description = task.body;
     }
-  } else {
-    eventDetails.value.summary = '';
-    eventDetails.value.description = '';
   }
 });
-
-const formatTime = (date) => {
-  return moment(date).format('h:mm A');
-};
 
 const handleProjectChange = () => {
   selectedTask.value = '';
 };
 
 const handleConfirm = () => {
-  const eventData = {
-    summary: eventDetails.value.summary,
-    description: eventDetails.value.description,
-    start: { dateTime: props.startTime.toISOString() },
-    end: { dateTime: props.endTime.toISOString() },
-  };
-  emit('confirm', eventData);
+  // Convert back to ISO string before emitting
+  editableEvent.value.start.dateTime = moment(editableEvent.value.start.dateTime).toISOString();
+  editableEvent.value.end.dateTime = moment(editableEvent.value.end.dateTime).toISOString();
+  emit('confirm', editableEvent.value);
+};
+
+const handleDelete = () => {
+  emit('delete', editableEvent.value.id);
 };
 
 const handleCancel = () => {
@@ -136,21 +132,21 @@ const handleCancel = () => {
   display: block;
   margin-bottom: 5px;
 }
-.form-group select, .form-group input, .form-group textarea {
+.form-group input, .form-group textarea, .form-group select {
   width: 100%;
   padding: 8px;
   border: 1px solid #ccc;
   border-radius: 3px;
 }
 .dialog-actions {
-  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
-.dialog-actions button {
-  margin-left: 10px;
-}
-hr {
+.delete-btn {
+  background-color: #dc3545;
+  color: white;
   border: none;
-  border-top: 1px solid #eee;
-  margin: 20px 0;
+  margin-right: auto;
 }
 </style>

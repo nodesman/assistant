@@ -1,22 +1,71 @@
 <template>
-  <div class="calendar-grid">
-    <div class="day-header" v-for="day in daysOfWeek" :key="day">{{ day }}</div>
-    <div class="day-cell" v-for="day in calendarDays" :key="day.date.toString()" :class="{ 'is-today': day.isToday, 'is-current-month': day.isCurrentMonth }">
-      <div class="day-number">{{ day.date.date() }}</div>
-      <div class="events">
-        <div class="event" v-for="event in day.events" :key="event.id">{{ event.summary }}</div>
+  <div class="month-view">
+    <div class="calendar-grid">
+      <div class="day-header" v-for="day in daysOfWeek" :key="day">{{ day }}</div>
+      <div
+        class="day-cell"
+        v-for="day in calendarDays"
+        :key="day.date.toString()"
+        :class="{ 'is-today': day.isToday, 'is-current-month': day.isCurrentMonth }"
+        @mousedown="handleMouseDown($event, day.date)"
+        @mousemove="handleMouseMove"
+        @mouseup="handleMouseUp"
+        @mouseleave="handleMouseLeave"
+      >
+        <div class="day-number">{{ day.date.date() }}</div>
+        <div class="events">
+          <div
+            class="event"
+            v-for="event in day.events"
+            :key="event.id"
+            @click.stop="handleEventClick(event)"
+            @mousedown.stop
+          >
+            {{ event.summary }}
+          </div>
+        </div>
       </div>
     </div>
+    <CreateEventDialog
+      v-if="showCreateDialog"
+      :start-time="selection.startTime"
+      :end-time="selection.endTime"
+      @confirm="handleCreateConfirm"
+      @cancel="handleCreateCancel"
+    />
+    <EditEventDialog
+      v-if="showEditDialog"
+      :event="selectedEvent"
+      @confirm="handleEditConfirm"
+      @cancel="handleEditCancel"
+      @delete="handleDeleteConfirm"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, defineEmits } from 'vue';
 import moment from 'moment';
+import CreateEventDialog from './CreateEventDialog.vue';
+import EditEventDialog from './EditEventDialog.vue';
 
 const props = defineProps({
   events: Array,
   currentDate: Object,
+});
+
+const emit = defineEmits(['event-modified']);
+
+const showCreateDialog = ref(false);
+const showEditDialog = ref(false);
+const selectedEvent = ref(null);
+const selection = ref({
+  active: false,
+  date: null,
+  startY: 0,
+  endY: 0,
+  startTime: null,
+  endTime: null,
 });
 
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -41,6 +90,88 @@ const calendarDays = computed(() => {
   }
   return days;
 });
+
+const handleMouseDown = (e, date) => {
+  selection.value.active = true;
+  selection.value.date = date;
+  selection.value.startY = e.offsetY;
+  selection.value.endY = e.offsetY; // Initialize endY
+};
+
+const handleMouseMove = (e) => {
+  if (selection.value.active) {
+    selection.value.endY = e.offsetY;
+  }
+};
+
+const handleMouseUp = (e) => {
+  if (!selection.value.active) return;
+  selection.value.active = false;
+
+  const startY = selection.value.startY;
+  const endY = selection.value.endY;
+  const dragDistance = Math.abs(endY - startY);
+  const cellHeight = e.currentTarget.clientHeight;
+
+  let startTime, endTime;
+
+  if (dragDistance < 10) { // Click
+    const startFraction = startY / cellHeight;
+    const startMinutes = Math.floor(startFraction * 24 * 60);
+    startTime = selection.value.date.clone().startOf('day').add(startMinutes, 'minutes');
+    endTime = startTime.clone().add(30, 'minutes');
+  } else { // Drag
+    const startFraction = startY / cellHeight;
+    const endFraction = endY / cellHeight;
+    const startMinutes = Math.floor(startFraction * 24 * 60);
+    const endMinutes = Math.floor(endFraction * 24 * 60);
+
+    startTime = selection.value.date.clone().startOf('day').add(Math.min(startMinutes, endMinutes), 'minutes');
+    endTime = selection.value.date.clone().startOf('day').add(Math.max(startMinutes, endMinutes), 'minutes');
+  }
+
+  selection.value.startTime = startTime;
+  selection.value.endTime = endTime;
+
+  showCreateDialog.value = true;
+};
+
+const handleMouseLeave = () => {
+  if (selection.value.active) {
+    selection.value.active = false;
+  }
+};
+
+const handleCreateConfirm = async (eventData) => {
+  await window.api.createCalendarEvent(eventData);
+  showCreateDialog.value = false;
+  emit('event-modified');
+};
+
+const handleCreateCancel = () => {
+  showCreateDialog.value = false;
+};
+
+const handleEventClick = (event) => {
+  selectedEvent.value = event;
+  showEditDialog.value = true;
+};
+
+const handleEditConfirm = async (updatedEvent) => {
+  await window.api.updateCalendarEvent(updatedEvent.id, updatedEvent);
+  showEditDialog.value = false;
+  emit('event-modified');
+};
+
+const handleEditCancel = () => {
+  showEditDialog.value = false;
+};
+
+const handleDeleteConfirm = async (eventId) => {
+  await window.api.deleteCalendarEvent(eventId);
+  showEditDialog.value = false;
+  emit('event-modified');
+};
 </script>
 
 <style scoped>
@@ -58,6 +189,8 @@ const calendarDays = computed(() => {
   height: 120px;
   padding: 5px;
   overflow-y: auto;
+  position: relative;
+  cursor: crosshair;
 }
 .is-today {
   background-color: #f0f0f0;
@@ -77,5 +210,6 @@ const calendarDays = computed(() => {
   padding: 2px 4px;
   margin-bottom: 2px;
   font-size: 12px;
+  cursor: pointer;
 }
 </style>

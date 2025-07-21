@@ -9,17 +9,26 @@
         v-for="event in dayEvents"
         :key="event.id"
         :style="getEventStyle(event)"
+        @click.stop="handleEventClick(event)"
+        @mousedown.stop
       >
         {{ event.summary }}
       </div>
       <div v-if="selection.active" class="selection-box" :style="selectionStyle"></div>
     </div>
     <CreateEventDialog
-      v-if="showDialog"
+      v-if="showCreateDialog"
       :start-time="selection.startTime"
       :end-time="selection.endTime"
       @confirm="handleDialogConfirm"
       @cancel="handleDialogCancel"
+    />
+    <EditEventDialog
+      v-if="showEditDialog"
+      :event="selectedEvent"
+      @confirm="handleEditConfirm"
+      @cancel="handleEditCancel"
+      @delete="handleDeleteConfirm"
     />
   </div>
 </template>
@@ -28,13 +37,14 @@
 import { ref, computed, defineEmits } from 'vue';
 import moment from 'moment';
 import CreateEventDialog from './CreateEventDialog.vue';
+import EditEventDialog from './EditEventDialog.vue';
 
 const props = defineProps({
   events: Array,
   currentDate: Object,
 });
 
-const emit = defineEmits(['event-created']);
+const emit = defineEmits(['event-modified']);
 
 const selection = ref({
   active: false,
@@ -43,7 +53,9 @@ const selection = ref({
   startTime: null,
   endTime: null,
 });
-const showDialog = ref(false);
+const showCreateDialog = ref(false);
+const showEditDialog = ref(false);
+const selectedEvent = ref(null);
 
 const dayEvents = computed(() => {
   return props.events.filter(event => moment(event.start.dateTime).isSame(props.currentDate, 'day'));
@@ -86,33 +98,61 @@ const handleMouseMove = (e) => {
 };
 
 const handleMouseUp = () => {
+  if (!selection.value.active) return;
   selection.value.active = false;
-  const startMinutes = Math.min(selection.value.startY, selection.value.endY);
-  const endMinutes = Math.max(selection.value.startY, selection.value.endY);
 
-  // Ignore clicks or tiny drags
-  if (endMinutes - startMinutes < 5) {
-    return;
+  const startY = selection.value.startY;
+  const endY = selection.value.endY;
+  const dragDistance = Math.abs(endY - startY);
+
+  let startTime, endTime;
+
+  if (dragDistance < 5) { // It's a click
+    const startMinutes = startY;
+    startTime = props.currentDate.clone().startOf('day').add(startMinutes, 'minutes');
+    endTime = startTime.clone().add(30, 'minutes');
+  } else { // It's a drag
+    const startMinutes = Math.min(startY, endY);
+    const endMinutes = Math.max(startY, endY);
+    startTime = props.currentDate.clone().startOf('day').add(startMinutes, 'minutes');
+    endTime = props.currentDate.clone().startOf('day').add(endMinutes, 'minutes');
   }
-
-  const startTime = props.currentDate.clone().startOf('day').add(startMinutes, 'minutes');
-  const endTime = props.currentDate.clone().startOf('day').add(endMinutes, 'minutes');
 
   selection.value.startTime = startTime;
   selection.value.endTime = endTime;
 
-  showDialog.value = true;
+  showCreateDialog.value = true;
 };
 
-const handleDialogConfirm = async ({ task }) => {
-  const plainTask = { ...task };
-  await window.api.createCalendarEvent(plainTask, selection.value.startTime.toISOString(), selection.value.endTime.toISOString());
-  showDialog.value = false;
-  emit('event-created');
+const handleDialogConfirm = async (eventData) => {
+  await window.api.createCalendarEvent(eventData);
+  showCreateDialog.value = false;
+  emit('event-modified');
 };
 
 const handleDialogCancel = () => {
-  showDialog.value = false;
+  showCreateDialog.value = false;
+};
+
+const handleEventClick = (event) => {
+  selectedEvent.value = event;
+  showEditDialog.value = true;
+};
+
+const handleEditConfirm = async (updatedEvent) => {
+  await window.api.updateCalendarEvent(updatedEvent.id, updatedEvent);
+  showEditDialog.value = false;
+  emit('event-modified'); // Re-fetch events to show the update
+};
+
+const handleEditCancel = () => {
+  showEditDialog.value = false;
+};
+
+const handleDeleteConfirm = async (eventId) => {
+  await window.api.deleteCalendarEvent(eventId);
+  showEditDialog.value = false;
+  emit('event-modified'); // Re-fetch to show the deletion
 };
 </script>
 
@@ -151,7 +191,7 @@ const handleDialogCancel = () => {
   border-radius: 3px;
   font-size: 12px;
   overflow: hidden;
-  pointer-events: none;
+  cursor: pointer;
 }
 .selection-box {
   position: absolute;

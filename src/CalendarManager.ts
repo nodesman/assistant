@@ -19,13 +19,13 @@ export class CalendarManager {
         return this.calendar;
     }
 
-    async getCalendarEvents(calendarId: string = 'primary'): Promise<any[]> {
+    async getCalendarEvents(timeMin: string, timeMax: string, calendarId: string = 'primary'): Promise<any[]> {
         const calendar = await this.getCalendarClient();
         try {
             const response = await calendar.events.list({
                 calendarId,
-                timeMin: (new Date()).toISOString(),
-                maxResults: 10,
+                timeMin,
+                timeMax,
                 singleEvents: true,
                 orderBy: 'startTime',
             });
@@ -36,59 +36,22 @@ export class CalendarManager {
         }
     }
 
-    /**
-     * Fetches free/busy information for a given time range and calendar.
-     * @param timeMin Start time (ISO 8601).
-     * @param timeMax End time (ISO 8601).
-     * @param calendarId The ID of the calendar to check.
-     * @returns Free/busy data.
-     */
-    async getFreeBusy(timeMin: string, timeMax: string, calendarId: string = 'primary'): Promise<any> {
-        const calendar = await this.getCalendarClient();
-        try {
-            const response = await calendar.freebusy.query({
-                requestBody: {
-                    timeMin,
-                    timeMax,
-                    items: [{ id: calendarId }],
-                },
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching free/busy data:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Creates a calendar event for a task.
-     * @param task The task to schedule.
-     * @param startTime The start time of the event (ISO 8601).
-     * @param endTime The end time of the event (ISO 8601).
-     * @param calendarId The ID of the calendar to add the event to.
-     * @returns The created event data.
-     */
     async createCalendarEvent(
-        task: Task,
-        startTime: string,
-        endTime: string,
+        event: { summary: string; description: string; start: { dateTime: string }; end: { dateTime: string } },
         calendarId: string = 'primary'
     ): Promise<any> {
-        console.log('Creating calendar event with task:', task);
         const calendar = await this.getCalendarClient();
         try {
-            const event = {
-                summary: task.title,
-                description: task.body,
-                start: { dateTime: startTime, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-                end: { dateTime: endTime, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+            const eventWithTimeZone = {
+                ...event,
+                start: { ...event.start, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+                end: { ...event.end, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
             };
-            console.log('Sending event to Google Calendar:', event);
             const response = await calendar.events.insert({
                 calendarId,
-                requestBody: event,
+                requestBody: eventWithTimeZone,
             });
-            console.log(`Event created for task "${task.title}" from ${startTime} to ${endTime}`);
+            console.log(`Event created: "${event.summary}"`);
             return response.data;
         } catch (error) {
             console.error('Error creating calendar event:', error);
@@ -96,43 +59,37 @@ export class CalendarManager {
         }
     }
 
-    /**
-     * Placeholder for intelligent task scheduling logic.
-     * This method would take a task and find suitable slots in the calendar.
-     * @param task The task to schedule.
-     * @param project The project the task belongs to (for context).
-     * @param calendarId The ID of the calendar to schedule on.
-     */
-    async scheduleTask(
-        task: Task,
-        project: Project,
+    async updateCalendarEvent(
+        eventId: string,
+        event: any,
         calendarId: string = 'primary'
-    ): Promise<void> {
-        console.log(`Attempting to schedule task: "${task.title}" from project "${project.title}"`);
-
-        if (!task.estimated_duration_minutes) {
-            console.log(`Task "${task.title}" has no estimated duration. Skipping scheduling.`);
-            return;
-        }
-
-        // For demonstration, let's try to schedule it for tomorrow for its estimated duration
-        const now = new Date();
-        const tomorrow = new Date(now);
-        tomorrow.setDate(now.getDate() + 1);
-        tomorrow.setHours(9, 0, 0, 0); // Start at 9 AM tomorrow
-
-        const endTime = new Date(tomorrow.getTime() + task.estimated_duration_minutes * 60 * 1000);
-
+    ): Promise<any> {
+        const calendar = await this.getCalendarClient();
         try {
-            await this.createCalendarEvent(
-                task,
-                tomorrow.toISOString(),
-                endTime.toISOString(),
-                calendarId
-            );
-            console.log(`Successfully scheduled "${task.title}" for tomorrow.`);
+            const response = await calendar.events.update({
+                calendarId,
+                eventId,
+                requestBody: event,
+            });
+            console.log(`Event with ID "${eventId}" updated.`);
+            return response.data;
         } catch (error) {
-            console.error(`Failed to schedule "${task.title}":`, error);
+            console.error('Error updating calendar event:', error);
+            throw error;
+        }
+    }
+
+    async deleteCalendarEvent(eventId: string, calendarId: string = 'primary'): Promise<void> {
+        const calendar = await this.getCalendarClient();
+        try {
+            await calendar.events.delete({
+                calendarId,
+                eventId,
+            });
+            console.log(`Event with ID "${eventId}" deleted.`);
+        } catch (error) {
+            console.error('Error deleting calendar event:', error);
+            throw error;
         }
     }
 }

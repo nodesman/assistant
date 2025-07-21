@@ -76,8 +76,10 @@ async function main() {
     ipcMain.handle('get-projects', () => projectManager.getAllProjects());
     ipcMain.handle('get-goals', () => horizonsManager.getHorizons());
     ipcMain.handle('get-journal-entries', () => journalManager.getAllEntries());
-    ipcMain.handle('get-calendar-events', () => calendarManager.getCalendarEvents());
-    ipcMain.handle('create-calendar-event', (event, task, startTime, endTime) => calendarManager.createCalendarEvent(task, startTime, endTime));
+    ipcMain.handle('get-calendar-events', (event, timeMin, timeMax) => calendarManager.getCalendarEvents(timeMin, timeMax));
+    ipcMain.handle('create-calendar-event', (event, eventBody) => calendarManager.createCalendarEvent(eventBody));
+    ipcMain.handle('update-calendar-event', (event, eventId, eventBody) => calendarManager.updateCalendarEvent(eventId, eventBody));
+    ipcMain.handle('delete-calendar-event', (event, eventId) => calendarManager.deleteCalendarEvent(eventId));
     ipcMain.handle('generate-chat-response', (event, context, message) => aiManager.generateChatResponse([{role: 'user', content: `${context}\n\n${message}`}]));
     ipcMain.handle('authorize-google-account', () => googleAuthService.authorize());
     ipcMain.handle('get-authorized-user', () => googleAuthService.getAuthorizedUser());
@@ -113,6 +115,10 @@ async function main() {
     });
     ipcMain.on('console-error', (event, ...args) => {
         console.error('[Renderer]', ...args);
+    });
+
+    process.on('uncaughtException', (error) => {
+        console.error('Uncaught Exception:', error);
     });
 }
 
