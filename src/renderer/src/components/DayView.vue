@@ -176,9 +176,11 @@ const handleDragStart = (e, event) => {
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('application/json', JSON.stringify({ eventId: event.id }));
   
+  console.log('DayView: handleDragStart id=', event.id, 'initialY=', e.clientY);
   dragData.value = {
     duration: moment(event.end.dateTime).diff(moment(event.start.dateTime)),
     initialMouseY: e.clientY,
+    eventElement: e.target,
   };
 
   setTimeout(() => {
@@ -189,9 +191,13 @@ const handleDragStart = (e, event) => {
 };
 
 const handleDragOver = (e) => {
-  if (!dragData.value) return;
+  if (!dragData.value) {
+    console.log('DayView: handleDragOver skipped, no dragData');
+    return;
+  }
   
   const snappedMinutes = Math.round(e.offsetY / 15) * 15;
+  console.log('DayView: handleDragOver snappedMinutes=', snappedMinutes);
   dropTarget.value.visible = true;
   dropTarget.value.y = snappedMinutes;
   dropTarget.value.height = moment.duration(dragData.value.duration).asMinutes();
@@ -210,34 +216,68 @@ const handleDragEnd = (e) => {
 };
 
 const handleDrop = async (e) => {
-  if (!dragData.value) return;
+  console.log('DayView: handleDrop start, dragData=', dragData.value);
+  if (!dragData.value) {
+    console.log('DayView: handleDrop skipped, no dragData');
+    return;
+  }
 
   const dragDistance = Math.abs(e.clientY - dragData.value.initialMouseY);
+  console.log('DayView: handleDrop dragDistance=', dragDistance,
+              'initialY=', dragData.value.initialMouseY,
+              'clientY=', e.clientY);
   if (dragDistance < 10) {
+    console.log('DayView: handleDrop below dragDistance threshold, cancelling');
     handleDragEnd(e);
     return;
   }
 
   const payload = e.dataTransfer.getData('application/json');
-  if (!payload) return;
+  console.log('DayView: handleDrop payloadString=', payload);
+  if (!payload) {
+    console.log('DayView: handleDrop no payload, abort');
+    return;
+  }
   const data = JSON.parse(payload);
+  console.log('DayView: handleDrop parsed data=', data);
 
   const snappedMinutes = Math.round(e.offsetY / 15) * 15;
+  console.log('DayView: handleDrop snappedMinutes=', snappedMinutes);
+  // immediately reposition the dragged element for visual feedback
+  if (dragData.value.eventElement?.style) {
+    console.log('DayView: handleDrop moving element top to', snappedMinutes);
+    dragData.value.eventElement.style.top = `${snappedMinutes}px`;
+  }
   const newStart = props.currentDate.clone().startOf('day').add(snappedMinutes, 'minutes');
   const newEnd = newStart.clone().add(dragData.value.duration);
+  console.log('DayView: handleDrop newStart=', newStart.format(), 'newEnd=', newEnd.format());
 
   const originalEvent = props.events.find(ev => ev.id === data.eventId);
   const updatedEvent = {
     ...originalEvent,
     start: { dateTime: newStart.toISOString() },
-    end: { dateTime: newEnd.toISOString() },
+    end:   { dateTime: newEnd.toISOString() },
   };
+  console.log('DayView: handleDrop updatedEvent=', updatedEvent);
   
   try {
-    await window.api.updateCalendarEvent(updatedEvent.id, updatedEvent);
+    console.log('DayView: handleDrop preparing payload for updateCalendarEvent');
+    // strip Vue proxies and any extra fields: only include plain data
+    const payloadEvent = {
+      summary: updatedEvent.summary,
+      description: updatedEvent.description,
+      start: updatedEvent.start,
+      end: updatedEvent.end,
+    };
+    console.log('DayView: handleDrop payloadEvent=', payloadEvent);
+    await window.api.updateCalendarEvent(updatedEvent.id, payloadEvent);
+    console.log('DayView: handleDrop updateCalendarEvent success');
     emit('event-modified');
   } catch (error) {
-    console.error('Failed to update event via drag-and-drop:', error);
+    console.error('DayView: handleDrop updateCalendarEvent failed:', error);
+  } finally {
+    console.log('DayView: handleDrop final cleanup');
+    handleDragEnd(e);
   }
 };
 

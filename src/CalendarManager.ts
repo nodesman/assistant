@@ -66,12 +66,21 @@ export class CalendarManager {
     ): Promise<any> {
         const calendar = await this.getCalendarClient();
         try {
+            console.log('CalendarManager.updateCalendarEvent:', { eventId, event });
+            // ensure timeZone is set on start and end, like on creation
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const requestBody = {
+                ...event,
+                start: { ...event.start, timeZone: tz },
+                end: { ...event.end, timeZone: tz },
+            };
+            console.log('CalendarManager.updateCalendarEvent requestBody:', requestBody);
             const response = await calendar.events.update({
                 calendarId,
                 eventId,
-                requestBody: event,
+                requestBody,
             });
-            console.log(`Event with ID "${eventId}" updated.`);
+            console.log(`CalendarManager: Event with ID "${eventId}" updated.`);
             return response.data;
         } catch (error) {
             console.error('Error updating calendar event:', error);
