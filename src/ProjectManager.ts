@@ -28,6 +28,7 @@ export class ProjectManager {
     }
 
     async addTask(projectId: string, taskData: Partial<Task>): Promise<void> {
+        // addTask called
         const newTask = {
             id: uuidv4(),
             projectId: projectId,
@@ -37,6 +38,7 @@ export class ProjectManager {
     }
 
     async updateTask(taskId: string, taskData: Partial<Task>): Promise<void> {
+        // updateTask called
         await this.db('tasks').where('id', taskId).update(taskData);
     }
 

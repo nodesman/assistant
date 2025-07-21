@@ -35,7 +35,7 @@
       </div>
       <div class="form-group">
         <label>Description</label>
-        <textarea v-model="eventDetails.description" placeholder="Event Details"></textarea>
+        <TaskEditor v-model="eventDetails.description" />
       </div>
       <div class="form-group">
         <label>Start Time</label>
@@ -64,6 +64,7 @@
 import { ref, onMounted, computed, watch, defineEmits, defineProps } from 'vue';
 import moment from 'moment';
 import GenericConfirmationDialog from './GenericConfirmationDialog.vue';
+import TaskEditor from './TaskEditor.vue';
 
 const props = defineProps({
   startTime: Object,
@@ -168,24 +169,25 @@ const handleCancel = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(4px);
 }
 .dialog-content {
-  background-color: white;
-  padding: 30px;
+  background-color: #ffffff;
+  padding: 24px;
   border-radius: 12px;
-  width: 450px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  width: 480px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
   animation: slide-up 0.3s ease-out;
+  border: 1px solid #e0e0e0;
 }
 @keyframes slide-up {
   from {
-    transform: translateY(20px);
+    transform: translateY(15px);
     opacity: 0;
   }
   to {
@@ -195,75 +197,79 @@ const handleCancel = () => {
 }
 h2 {
   margin-top: 0;
-  margin-bottom: 25px;
-  font-size: 24px;
+  margin-bottom: 20px;
+  font-size: 20px;
   font-weight: 600;
   color: #333;
-  text-align: center;
 }
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 .form-group label {
   display: block;
-  margin-bottom: 8px;
-  font-weight: 600;
+  margin-bottom: 6px;
+  font-weight: 500;
   color: #555;
   font-size: 14px;
 }
 .form-group select, .form-group input, .form-group textarea {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  padding: 10px;
+  border: 1px solid #dcdcdc;
+  border-radius: 6px;
   font-size: 14px;
+  background-color: #fdfdfd;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .form-group select:focus, .form-group input:focus, .form-group textarea:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
 }
 textarea {
   resize: vertical;
-  min-height: 100px;
+  min-height: 90px;
 }
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 30px;
+  gap: 10px;
+  margin-top: 24px;
 }
 .dialog-actions button {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
+  padding: 10px 20px;
+  border: 1px solid transparent;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
   font-size: 14px;
   transition: all 0.2s ease;
 }
 .dialog-actions button:first-child {
-  background-color: #007bff;
+  background-color: #4a90e2;
   color: white;
+  border-color: #4a90e2;
 }
 .dialog-actions button:first-child:hover {
-  background-color: #0056b3;
+  background-color: #357abd;
 }
 .dialog-actions button:first-child:disabled {
   background-color: #a0c7e4;
+  border-color: #a0c7e4;
   cursor: not-allowed;
 }
 .dialog-actions button:last-child {
-  background-color: #f0f0f0;
+  background-color: #f9f9f9;
   color: #555;
+  border-color: #e0e0e0;
 }
 .dialog-actions button:last-child:hover {
-  background-color: #e0e0e0;
+  background-color: #f0f0f0;
+  border-color: #dcdcdc;
 }
 hr {
   border: none;
-  border-top: 1px solid #eee;
-  margin: 25px 0;
+  border-top: 1px solid #e0e0e0;
+  margin: 20px 0;
 }
 </style>

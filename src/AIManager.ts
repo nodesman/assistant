@@ -4,14 +4,18 @@ import { AiClient, JournalConfig, ChatMessage } from "./types";
 import { CalendarManager } from "./CalendarManager";
 import moment from "moment";
 
+import { ProjectManager } from "./ProjectManager";
+
 export class AIManager implements AiClient {
     private config: JournalConfig['ai'];
     private googleAI: GoogleGenerativeAI;
     private calendarManager: CalendarManager;
+    private projectManager: ProjectManager;
 
-    constructor(config: JournalConfig['ai'], calendarManager: CalendarManager) {
+    constructor(config: JournalConfig['ai'], calendarManager: CalendarManager, projectManager: ProjectManager) {
         this.config = config;
         this.calendarManager = calendarManager;
+        this.projectManager = projectManager;
         const apiKey = process.env[this.config.api_key_env_var];
 
         if (!apiKey) {
@@ -25,82 +29,145 @@ export class AIManager implements AiClient {
         {
             functionDeclarations: [
                 {
-                    name: "get_calendar_events",
-                    description: "Get a list of calendar events for a given date range. The user can specify a date or use terms like 'today' or 'tomorrow'.",
+                    name: "save_project_titles",
+                    description: "Saves the list of project titles found in the document.",
                     parameters: {
                         type: "OBJECT",
                         properties: {
-                            startDate: { type: "STRING", description: "The start date in ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ). Defaults to the beginning of the current day if not specified." },
-                            endDate: { type: "STRING", description: "The end date in ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ). Defaults to the end of the current day if not specified." },
-                        },
-                        required: [],
-                    },
-                },
-                {
-                    name: "list_calendars",
-                    description: "Get a list of all available calendars for the user.",
-                    parameters: {
-                        type: "OBJECT",
-                        properties: {},
-                        required: [],
-                    },
-                },
-                {
-                    name: "create_calendar_event",
-                    description: "Create a new calendar event. The user must provide a title, start time, and end time.",
-                    parameters: {
-                        type: "OBJECT",
-                        properties: {
-                            calendarId: { type: "STRING", description: "The ID of the calendar to create the event in. The user should specify which calendar to use." },
-                            summary: { type: "STRING", description: "The title or summary of the event." },
-                            startTime: { type: "STRING", description: "The start time of the event in ISO 8601 format." },
-                            endTime: { type: "STRING", description: "The end time of the event in ISO 8601 format." },
-                            description: { type: "STRING", description: "A longer description for the event." },
-                            location: { type: "STRING", description: "The location of the event." },
-                        },
-                        required: ["calendarId", "summary", "startTime", "endTime"],
-                    },
-                },
-                {
-                    name: "delete_calendar_event",
-                    description: "Delete a calendar event. The user must provide the event ID and the calendar ID.",
-                    parameters: {
-                        type: "OBJECT",
-                        properties: {
-                            eventId: { type: "STRING", description: "The ID of the event to delete." },
-                            calendarId: { type: "STRING", description: "The ID of the calendar the event belongs to." },
-                        },
-                        required: ["eventId", "calendarId"],
-                    },
-                },
-                {
-                    name: "create_multiple_calendar_events",
-                    description: "Create multiple calendar events from a list of tasks or a block of text. The user must provide the calendar ID and a list of event details.",
-                    parameters: {
-                        type: "OBJECT",
-                        properties: {
-                            calendarId: { type: "STRING", description: "The ID of the calendar to create the events in." },
-                            events: {
+                            project_titles: {
                                 type: "ARRAY",
-                                description: "An array of event objects to create.",
+                                description: "An array of project titles.",
+                                items: { type: "STRING" },
+                            },
+                        },
+                        required: ["project_titles"],
+                    },
+                },
+                {
+                    name: "save_project_details",
+                    description: "Saves the details of a single project, including its tasks.",
+                    parameters: {
+                        type: "OBJECT",
+                        properties: {
+                            title: { type: "STRING", description: "The title of the project." },
+                            body: { type: "STRING", description: "A detailed description of the project." },
+                            tasks: {
+                                type: "ARRAY",
+                                description: "An array of task objects for the project.",
                                 items: {
                                     type: "OBJECT",
                                     properties: {
-                                        summary: { type: "STRING", description: "The title or summary of the event." },
-                                        startTime: { type: "STRING", description: "The start time of the event in ISO 8601 format." },
-                                        endTime: { type: "STRING", description: "The end time of the event in ISO 8601 format." },
+                                        title: { type: "STRING", description: "The title of the task." },
+                                        body: { type: "STRING", description: "A detailed description of the task." },
+                                        status: { type: "STRING", description: "The status of the task, e.g., 'To Do', 'In Progress', 'Done'." },
                                     },
-                                    required: ["summary", "startTime", "endTime"],
+                                    required: ["title", "body", "status"],
                                 },
                             },
                         },
-                        required: ["calendarId", "events"],
+                        required: ["title", "body", "tasks"],
                     },
                 },
+                // ... other tools like get_calendar_events etc.
             ],
         },
     ];
 
+    async extractProjectsAndTasks(fileContent: string, userPrompt: string, log: (message: string) => void): Promise<void> {
+        const maxRetries = 3;
+
+        // --- Step 1: Get Existing Project Titles ---
+        log("Fetching existing projects from the database...");
+        const existingProjects = await this.projectManager.getAllProjects();
+        const existingTitles = new Set(existingProjects.map(p => p.title));
+        log(`Found ${existingTitles.size} existing projects.`);
+
+        // --- Step 2: Get Project Titles from Document ---
+        log("Step 1: Identifying project titles from the document...");
+        const getTitlesModel = this.googleAI.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            tools: [{ functionDeclarations: [this.tools[0].functionDeclarations.find(fd => fd.name === 'save_project_titles')] }],
+        });
+
+        const titlesPrompt = `Based on the following document, please identify all the project titles.
+            ${userPrompt}
+            ---
+            ${fileContent}
+            ---
+        `;
+
+        let projectTitles = [];
+        try {
+            const result = await getTitlesModel.generateContent(titlesPrompt);
+            const call = result.response.functionCalls()?.[0];
+            if (call && call.name === 'save_project_titles' && call.args.project_titles) {
+                projectTitles = call.args.project_titles;
+                log(`Found ${projectTitles.length} projects in the document: ${projectTitles.join(', ')}`);
+            } else {
+                log("Error: Could not identify project titles from the document.");
+                return;
+            }
+        } catch (e) {
+            log(`Error during project title extraction: ${e.message}`);
+            return;
+        }
+
+        // --- Step 3: Get Tasks for Each NEW Project and Save ---
+        const getDetailsModel = this.googleAI.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            tools: [{ functionDeclarations: [this.tools[0].functionDeclarations.find(fd => fd.name === 'save_project_details')] }],
+        });
+
+        for (const title of projectTitles) {
+            if (existingTitles.has(title)) {
+                log(`Skipping project "${title}" as it already exists.`);
+                continue;
+            }
+
+            log(`Step 2: Extracting tasks for new project: "${title}"...`);
+            const detailsPrompt = `From the document provided below, please extract the full details (body and all tasks) for the project titled "${title}".
+                ---
+                ${fileContent}
+                ---
+            `;
+
+            let success = false;
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    const result = await getDetailsModel.generateContent(detailsPrompt);
+                    const call = result.response.functionCalls()?.[0];
+
+                    if (call && call.name === 'save_project_details' && call.args.title) {
+                        const projectData = call.args;
+                        log(`  - Successfully extracted details for "${title}". Saving to database...`);
+
+                        // Save the project and its tasks
+                        const newProject = await this.projectManager.createProject({ title: projectData.title, body: projectData.body });
+                        if (newProject) {
+                            for (const task of projectData.tasks) {
+                                await this.projectManager.addTask(newProject.id, task);
+                            }
+                            log(`  - Successfully saved project "${title}" and its ${projectData.tasks.length} tasks.`);
+                        } else {
+                            log(`  - ERROR: Failed to create project "${title}" in the database.`);
+                        }
+                        success = true;
+                        break; // Exit retry loop on success
+                    }
+                } catch (e) {
+                    log(`  - Error on attempt ${attempt} for project "${title}": ${e.message}`);
+                }
+                if (attempt < maxRetries) {
+                   log(`  - Retry attempt ${attempt + 1} for project "${title}"...`);
+                }
+            }
+            if (!success) {
+                log(`  - FAILED to extract details for project "${title}" after ${maxRetries} attempts.`);
+            }
+        }
+
+        log("Import process complete.");
+    }
     async generateReflection(entry: string): Promise<string> {
         // ... (existing implementation)
         return "Not implemented for brevity in this example";

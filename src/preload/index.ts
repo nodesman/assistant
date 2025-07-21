@@ -17,7 +17,7 @@ contextBridge.exposeInMainWorld('api', {
   createCalendarEvent: (eventBody, calendarId) => ipcRenderer.invoke('create-calendar-event', eventBody, calendarId),
   updateCalendarEvent: (eventId, eventBody, calendarId) => ipcRenderer.invoke('update-calendar-event', eventId, eventBody, calendarId),
   deleteCalendarEvent: (eventId, calendarId) => ipcRenderer.invoke('delete-calendar-event', eventId, calendarId),
-  generateChatResponse: (context, message) => ipcRenderer.invoke('generate-chat-response', context, message),
+  generateChatResponse: (history) => ipcRenderer.invoke('generate-chat-response', history),
   authorizeGoogleAccount: () => ipcRenderer.invoke('authorize-google-account'),
   getAuthorizedUser: () => ipcRenderer.invoke('get-authorized-user'),
   removeGoogleAccount: () => ipcRenderer.invoke('remove-google-account'),
@@ -26,6 +26,9 @@ contextBridge.exposeInMainWorld('api', {
   },
   parseTextForProjects: (text) => ipcRenderer.invoke('parse-text-for-projects', text),
   importParsedProjects: (data) => ipcRenderer.invoke('import-parsed-projects', data),
+  extractProjectsAndTasks: (fileContent, prompt) => ipcRenderer.invoke('extract-projects-and-tasks', fileContent, prompt),
+  commitProjects: (projects) => ipcRenderer.invoke('commit-projects', projects),
+  getGoals: () => ipcRenderer.invoke('get-goals'),
 });
 
 // --- Forward Renderer Console Logs to Main Process ---

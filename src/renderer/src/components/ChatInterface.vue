@@ -76,8 +76,8 @@ const sendMessage = async () => {
   newMessage.value = '';
 
   try {
-    const context = await getContext();
-    const response = await window.api.generateChatResponse(context, userMessage);
+    const history = getHistory();
+    const response = await window.api.generateChatResponse(history);
     messages.value.push({ role: 'model', content: response, type: 'text' });
   } catch (error) {
     console.error('Error sending message:', error);
@@ -100,9 +100,18 @@ const handleConfirmation = async (isConfirmed: boolean, data?: any) => {
   }
 };
 
-const getContext = async () => {
+const getHistory = (): ChatMessage[] => {
+  const history: ChatMessage[] = messages.value
+    .filter(m => m.type === 'text' && (m.role === 'user' || m.role === 'model'))
+    .map(m => ({
+      role: m.role,
+      content: m.content || ''
+    }));
+
   const today = new Date().toISOString().slice(0, 10);
-  return `Today's date is ${today}.`;
+  const systemPrompt = `Today's date is ${today}.`;
+
+  return [{ role: 'system', content: systemPrompt }, ...history];
 };
 
 onMounted(() => {

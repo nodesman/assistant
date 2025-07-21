@@ -23,7 +23,7 @@ async function main() {
 
     const projectManager = new ProjectManager(dbManager);
     const calendarManager = new CalendarManager(config);
-    const aiManager = new AIManager(config.get().ai, calendarManager);
+    const aiManager = new AIManager(config.get().ai, calendarManager, projectManager);
     const textParser = new TextParser(aiManager);
     const googleAuthService = new GoogleAuthService(config);
     const horizonsManager = new HorizonsManager(config);
@@ -81,10 +81,7 @@ async function main() {
     ipcMain.handle('create-calendar-event', (event, eventBody, calendarId) => calendarManager.createCalendarEvent(eventBody, calendarId));
     ipcMain.handle('update-calendar-event', (event, eventId, eventBody, calendarId) => calendarManager.updateCalendarEvent(eventId, eventBody, calendarId));
     ipcMain.handle('delete-calendar-event', (event, eventId, calendarId) => calendarManager.deleteCalendarEvent(eventId, calendarId));
-    ipcMain.handle('generate-chat-response', (event, context, message) => aiManager.generateChatResponse([
-        {role: 'system', content: context},
-        {role: 'user', content: message}
-    ]));
+    ipcMain.handle('generate-chat-response', (event, history) => aiManager.generateChatResponse(history));
     ipcMain.handle('authorize-google-account', () => googleAuthService.authorize());
     ipcMain.handle('get-authorized-user', () => googleAuthService.getAuthorizedUser());
     ipcMain.handle('remove-google-account', () => googleAuthService.removeGoogleAccount());
@@ -109,6 +106,25 @@ async function main() {
             }
         }
     });
+
+    ipcMain.handle('extract-projects-and-tasks', async (event, fileContent, prompt) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (!window) return;
+
+        const log = (message: string) => {
+            console.log(message);
+            window.webContents.send('import-log', message);
+        };
+
+        try {
+            await aiManager.extractProjectsAndTasks(fileContent, prompt, log);
+        } catch (e) {
+            log(`An unexpected error occurred: ${e.message}`);
+        }
+    });
+
+    // This is now handled by the extract-projects-and-tasks handler
+    // ipcMain.handle('commit-projects', ...);
 
     // Console forwarding IPC handlers
     ipcMain.on('console-log', (event, ...args) => {
