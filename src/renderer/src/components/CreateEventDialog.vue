@@ -1,5 +1,5 @@
 <template>
-  <div class="dialog-overlay" @mousedown.stop @click.stop>
+  <div class="dialog-overlay" @mousedown.stop @click.stop @keydown.esc="handleCancel" @keydown.enter.prevent="requestConfirm">
     <div class="dialog-content">
       <h2>Create New Event</h2>
       <div class="form-group">
@@ -31,23 +31,31 @@
       </div>
       <div class="form-group">
         <label>Start Time</label>
-        <input type="text" :value="formatTime(startTime)" readonly />
+        <input type="datetime-local" v-model="localStartTime" />
       </div>
       <div class="form-group">
         <label>End Time</label>
-        <input type="text" :value="formatTime(endTime)" readonly />
+        <input type="datetime-local" v-model="localEndTime" />
       </div>
       <div class="dialog-actions">
-        <button @click="handleConfirm" :disabled="!eventDetails.summary">Create Event</button>
+        <button @click="requestConfirm" :disabled="!eventDetails.summary">Create Event</button>
         <button @click="handleCancel">Cancel</button>
       </div>
     </div>
+    <GenericConfirmationDialog
+      v-if="showConfirmation"
+      title="Confirm Creation"
+      message="Are you sure you want to create this event?"
+      @confirm="handleConfirm"
+      @cancel="showConfirmation = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, defineEmits, defineProps } from 'vue';
 import moment from 'moment';
+import GenericConfirmationDialog from './GenericConfirmationDialog.vue';
 
 const props = defineProps({
   startTime: Object,
@@ -63,6 +71,11 @@ const eventDetails = ref({
   summary: '',
   description: '',
 });
+const showConfirmation = ref(false);
+
+const localStartTime = ref(moment(props.startTime).format('YYYY-MM-DDTHH:mm'));
+const localEndTime = ref(moment(props.endTime).format('YYYY-MM-DDTHH:mm'));
+const duration = ref(moment(props.endTime).diff(moment(props.startTime)));
 
 onMounted(async () => {
   projects.value = await window.api.getProjects();
@@ -87,22 +100,45 @@ watch(selectedTask, (newTaskId) => {
   }
 });
 
-const formatTime = (date) => {
-  return moment(date).format('h:mm A');
-};
+watch(localStartTime, (newStart) => {
+  const start = moment(newStart);
+  const end = moment(localEndTime.value);
+  if (start.isAfter(end)) {
+    localEndTime.value = start.clone().add(duration.value).format('YYYY-MM-DDTHH:mm');
+  } else {
+    duration.value = end.diff(start);
+  }
+});
+
+watch(localEndTime, (newEnd) => {
+  const start = moment(localStartTime.value);
+  const end = moment(newEnd);
+  if (end.isBefore(start)) {
+    localEndTime.value = start.clone().add(30, 'minutes').format('YYYY-MM-DDTHH:mm');
+  }
+  duration.value = moment(localEndTime.value).diff(moment(localStartTime.value));
+});
+
 
 const handleProjectChange = () => {
   selectedTask.value = '';
+};
+
+const requestConfirm = () => {
+  if (eventDetails.value.summary) {
+    showConfirmation.value = true;
+  }
 };
 
 const handleConfirm = () => {
   const eventData = {
     summary: eventDetails.value.summary,
     description: eventDetails.value.description,
-    start: { dateTime: props.startTime.toISOString() },
-    end: { dateTime: props.endTime.toISOString() },
+    start: { dateTime: moment(localStartTime.value).toISOString() },
+    end: { dateTime: moment(localEndTime.value).toISOString() },
   };
   emit('confirm', eventData);
+  showConfirmation.value = false;
 };
 
 const handleCancel = () => {

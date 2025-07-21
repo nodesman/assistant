@@ -1,5 +1,5 @@
 <template>
-  <div class="dialog-overlay" @mousedown.stop @click.stop>
+  <div class="dialog-overlay" @mousedown.stop @click.stop @keydown.esc="handleCancel" @keydown.enter.prevent="requestUpdate">
     <div class="dialog-content">
       <h2>Edit Event</h2>
       <div class="form-group">
@@ -37,17 +37,32 @@
         <input type="datetime-local" v-model="editableEvent.end.dateTime" />
       </div>
       <div class="dialog-actions">
-        <button class="delete-btn" @click="handleDelete">Delete</button>
-        <button @click="handleConfirm">Update Event</button>
+        <button class="delete-btn" @click="requestDelete">Delete</button>
+        <button @click="requestUpdate">Update Event</button>
         <button @click="handleCancel">Cancel</button>
       </div>
     </div>
+    <GenericConfirmationDialog
+      v-if="showUpdateConfirmation"
+      title="Confirm Update"
+      message="Are you sure you want to update this event?"
+      @confirm="handleConfirm"
+      @cancel="showUpdateConfirmation = false"
+    />
+    <GenericConfirmationDialog
+      v-if="showDeleteConfirmation"
+      title="Confirm Deletion"
+      message="Are you sure you want to delete this event?"
+      @confirm="handleDelete"
+      @cancel="showDeleteConfirmation = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, defineEmits, defineProps } from 'vue';
 import moment from 'moment';
+import GenericConfirmationDialog from './GenericConfirmationDialog.vue';
 
 const props = defineProps({
   event: Object,
@@ -59,15 +74,15 @@ const projects = ref([]);
 const selectedProject = ref('');
 const selectedTask = ref('');
 const editableEvent = ref(JSON.parse(JSON.stringify(props.event)));
+const showUpdateConfirmation = ref(false);
+const showDeleteConfirmation = ref(false);
+const duration = ref(moment(props.event.end.dateTime).diff(moment(props.event.start.dateTime)));
 
-// Convert to a format suitable for datetime-local input
 editableEvent.value.start.dateTime = moment(editableEvent.value.start.dateTime).format('YYYY-MM-DDTHH:mm');
 editableEvent.value.end.dateTime = moment(editableEvent.value.end.dateTime).format('YYYY-MM-DDTHH:mm');
 
 onMounted(async () => {
   projects.value = await window.api.getProjects();
-  // Note: We can't reliably determine the project/task from the event,
-  // as this information is not stored in Google Calendar.
 });
 
 const availableTasks = computed(() => {
@@ -86,19 +101,49 @@ watch(selectedTask, (newTaskId) => {
   }
 });
 
+watch(() => editableEvent.value.start.dateTime, (newStart) => {
+  const start = moment(newStart);
+  const end = moment(editableEvent.value.end.dateTime);
+  if (start.isAfter(end)) {
+    editableEvent.value.end.dateTime = start.clone().add(duration.value).format('YYYY-MM-DDTHH:mm');
+  } else {
+    duration.value = end.diff(start);
+  }
+});
+
+watch(() => editableEvent.value.end.dateTime, (newEnd) => {
+  const start = moment(editableEvent.value.start.dateTime);
+  const end = moment(newEnd);
+  if (end.isBefore(start)) {
+    // If end is before start, set it to 30 minutes after the start time
+    editableEvent.value.end.dateTime = start.clone().add(30, 'minutes').format('YYYY-MM-DDTHH:mm');
+  }
+  duration.value = moment(editableEvent.value.end.dateTime).diff(moment(editableEvent.value.start.dateTime));
+});
+
 const handleProjectChange = () => {
   selectedTask.value = '';
 };
 
+const requestUpdate = () => {
+  showUpdateConfirmation.value = true;
+};
+
+const requestDelete = () => {
+  showDeleteConfirmation.value = true;
+};
+
 const handleConfirm = () => {
-  // Convert back to ISO string before emitting
   editableEvent.value.start.dateTime = moment(editableEvent.value.start.dateTime).toISOString();
   editableEvent.value.end.dateTime = moment(editableEvent.value.end.dateTime).toISOString();
-  emit('confirm', editableEvent.value);
+  const plainEvent = JSON.parse(JSON.stringify(editableEvent.value));
+  emit('confirm', plainEvent);
+  showUpdateConfirmation.value = false;
 };
 
 const handleDelete = () => {
   emit('delete', editableEvent.value.id);
+  showDeleteConfirmation.value = false;
 };
 
 const handleCancel = () => {

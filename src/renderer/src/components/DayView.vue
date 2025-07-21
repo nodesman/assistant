@@ -3,12 +3,14 @@
     <div class="time-axis">
       <div class="hour-label" v-for="hour in 24" :key="hour">{{ formatHour(hour - 1) }}</div>
     </div>
-    <div class="events-container">
+    <div class="events-container" @dragover.prevent @drop="handleDrop">
       <div
         class="event"
         v-for="event in dayEvents"
         :key="event.id"
         :style="getEventStyle(event)"
+        draggable="true"
+        @dragstart="handleDragStart($event, event)"
         @click.stop="handleEventClick(event)"
         @mousedown.stop
       >
@@ -56,6 +58,7 @@ const selection = ref({
 const showCreateDialog = ref(false);
 const showEditDialog = ref(false);
 const selectedEvent = ref(null);
+const dragData = ref(null);
 
 const dayEvents = computed(() => {
   return props.events.filter(event => moment(event.start.dateTime).isSame(props.currentDate, 'day'));
@@ -125,9 +128,13 @@ const handleMouseUp = () => {
 };
 
 const handleDialogConfirm = async (eventData) => {
-  await window.api.createCalendarEvent(eventData);
-  showCreateDialog.value = false;
-  emit('event-modified');
+  try {
+    await window.api.createCalendarEvent(eventData);
+    showCreateDialog.value = false;
+    emit('event-modified');
+  } catch (error) {
+    console.error('Failed to create event:', error);
+  }
 };
 
 const handleDialogCancel = () => {
@@ -140,9 +147,13 @@ const handleEventClick = (event) => {
 };
 
 const handleEditConfirm = async (updatedEvent) => {
-  await window.api.updateCalendarEvent(updatedEvent.id, updatedEvent);
-  showEditDialog.value = false;
-  emit('event-modified'); // Re-fetch events to show the update
+  try {
+    await window.api.updateCalendarEvent(updatedEvent.id, updatedEvent);
+    showEditDialog.value = false;
+    emit('event-modified');
+  } catch (error) {
+    console.error('Failed to update event:', error);
+  }
 };
 
 const handleEditCancel = () => {
@@ -150,9 +161,47 @@ const handleEditCancel = () => {
 };
 
 const handleDeleteConfirm = async (eventId) => {
-  await window.api.deleteCalendarEvent(eventId);
-  showEditDialog.value = false;
-  emit('event-modified'); // Re-fetch to show the deletion
+  try {
+    await window.api.deleteCalendarEvent(eventId);
+    showEditDialog.value = false;
+    emit('event-modified');
+  } catch (error) {
+    console.error('Failed to delete event:', error);
+  }
+};
+
+const handleDragStart = (e, event) => {
+  e.dataTransfer.effectAllowed = 'move';
+  dragData.value = {
+    eventId: event.id,
+    initialY: e.clientY,
+    initialStart: moment(event.start.dateTime),
+    initialEnd: moment(event.end.dateTime),
+  };
+};
+
+const handleDrop = async (e) => {
+  if (!dragData.value) return;
+
+  const minutesMoved = (e.clientY - dragData.value.initialY);
+  const newStart = dragData.value.initialStart.clone().add(minutesMoved, 'minutes');
+  const newEnd = dragData.value.initialEnd.clone().add(minutesMoved, 'minutes');
+
+  const originalEvent = props.events.find(ev => ev.id === dragData.value.eventId);
+  const updatedEvent = {
+    ...originalEvent,
+    start: { dateTime: newStart.toISOString() },
+    end: { dateTime: newEnd.toISOString() },
+  };
+
+  try {
+    await window.api.updateCalendarEvent(updatedEvent.id, updatedEvent);
+    emit('event-modified');
+  } catch (error) {
+    console.error('Failed to update event via drag-and-drop:', error);
+  }
+
+  dragData.value = null;
 };
 </script>
 

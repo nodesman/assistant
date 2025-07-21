@@ -11,6 +11,8 @@
         @mousemove="handleMouseMove"
         @mouseup="handleMouseUp"
         @mouseleave="handleMouseLeave"
+        @dragover.prevent
+        @drop="handleDrop(day.date)"
       >
         <div class="day-number">{{ day.date.date() }}</div>
         <div class="events">
@@ -18,6 +20,8 @@
             class="event"
             v-for="event in day.events"
             :key="event.id"
+            draggable="true"
+            @dragstart="handleDragStart($event, event)"
             @click.stop="handleEventClick(event)"
             @mousedown.stop
           >
@@ -67,6 +71,7 @@ const selection = ref({
   startTime: null,
   endTime: null,
 });
+const dragData = ref(null);
 
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -95,7 +100,7 @@ const handleMouseDown = (e, date) => {
   selection.value.active = true;
   selection.value.date = date;
   selection.value.startY = e.offsetY;
-  selection.value.endY = e.offsetY; // Initialize endY
+  selection.value.endY = e.offsetY;
 };
 
 const handleMouseMove = (e) => {
@@ -143,9 +148,13 @@ const handleMouseLeave = () => {
 };
 
 const handleCreateConfirm = async (eventData) => {
-  await window.api.createCalendarEvent(eventData);
-  showCreateDialog.value = false;
-  emit('event-modified');
+  try {
+    await window.api.createCalendarEvent(eventData);
+    showCreateDialog.value = false;
+    emit('event-modified');
+  } catch (error) {
+    console.error('Failed to create event in MonthView:', error);
+  }
 };
 
 const handleCreateCancel = () => {
@@ -158,9 +167,13 @@ const handleEventClick = (event) => {
 };
 
 const handleEditConfirm = async (updatedEvent) => {
-  await window.api.updateCalendarEvent(updatedEvent.id, updatedEvent);
-  showEditDialog.value = false;
-  emit('event-modified');
+  try {
+    await window.api.updateCalendarEvent(updatedEvent.id, updatedEvent);
+    showEditDialog.value = false;
+    emit('event-modified');
+  } catch (error) {
+    console.error('Failed to update event in MonthView:', error);
+  }
 };
 
 const handleEditCancel = () => {
@@ -168,9 +181,45 @@ const handleEditCancel = () => {
 };
 
 const handleDeleteConfirm = async (eventId) => {
-  await window.api.deleteCalendarEvent(eventId);
-  showEditDialog.value = false;
-  emit('event-modified');
+  try {
+    await window.api.deleteCalendarEvent(eventId);
+    showEditDialog.value = false;
+    emit('event-modified');
+  } catch (error) {
+    console.error('Failed to delete event in MonthView:', error);
+  }
+};
+
+const handleDragStart = (e, event) => {
+  e.dataTransfer.effectAllowed = 'move';
+  dragData.value = {
+    eventId: event.id,
+    startTimeOfDay: moment(event.start.dateTime).diff(moment(event.start.dateTime).startOf('day')),
+    duration: moment(event.end.dateTime).diff(moment(event.start.dateTime)),
+  };
+};
+
+const handleDrop = async (dropDate) => {
+  if (!dragData.value) return;
+
+  const newStart = dropDate.clone().startOf('day').add(dragData.value.startTimeOfDay);
+  const newEnd = newStart.clone().add(dragData.value.duration);
+
+  const originalEvent = props.events.find(ev => ev.id === dragData.value.eventId);
+  const updatedEvent = {
+    ...originalEvent,
+    start: { dateTime: newStart.toISOString() },
+    end: { dateTime: newEnd.toISOString() },
+  };
+
+  try {
+    await window.api.updateCalendarEvent(updatedEvent.id, updatedEvent);
+    emit('event-modified');
+  } catch (error) {
+    console.error('Failed to update event via drag-and-drop:', error);
+  }
+
+  dragData.value = null;
 };
 </script>
 
