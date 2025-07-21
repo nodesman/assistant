@@ -3,7 +3,7 @@
     <div class="time-axis">
       <div class="hour-label" v-for="hour in 24" :key="hour">{{ formatHour(hour - 1) }}</div>
     </div>
-    <div class="events-container" @dragover.prevent @drop="handleDrop">
+    <div class="events-container" @dragover.prevent="handleDragOver" @dragleave="handleDragLeave" @drop.prevent="handleDrop">
       <div
         class="event"
         v-for="event in dayEvents"
@@ -11,12 +11,14 @@
         :style="getEventStyle(event)"
         draggable="true"
         @dragstart="handleDragStart($event, event)"
+        @dragend="handleDragEnd"
         @click.stop="handleEventClick(event)"
         @mousedown.stop
       >
         {{ event.summary }}
       </div>
       <div v-if="selection.active" class="selection-box" :style="selectionStyle"></div>
+      <div v-if="dropTarget.visible" class="drop-target" :style="dropTargetStyle"></div>
     </div>
     <CreateEventDialog
       v-if="showCreateDialog"
@@ -36,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, defineEmits } from 'vue';
+import { ref, computed, defineEmits, onMounted, onUnmounted } from 'vue';
 import moment from 'moment';
 import CreateEventDialog from './CreateEventDialog.vue';
 import EditEventDialog from './EditEventDialog.vue';
@@ -58,7 +60,8 @@ const selection = ref({
 const showCreateDialog = ref(false);
 const showEditDialog = ref(false);
 const selectedEvent = ref(null);
-const dragData = ref(null);
+const dropTarget = ref({ visible: false, y: 0, height: 0 });
+const dragData = ref(null); // For visual feedback data
 
 const dayEvents = computed(() => {
   return props.events.filter(event => moment(event.start.dateTime).isSame(props.currentDate, 'day'));
@@ -88,6 +91,11 @@ const selectionStyle = computed(() => {
   };
 });
 
+const dropTargetStyle = computed(() => ({
+  top: `${dropTarget.value.y}px`,
+  height: `${dropTarget.value.height}px`,
+}));
+
 const handleMouseDown = (e) => {
   selection.value.active = true;
   selection.value.startY = e.offsetY;
@@ -108,22 +116,16 @@ const handleMouseUp = () => {
   const endY = selection.value.endY;
   const dragDistance = Math.abs(endY - startY);
 
-  let startTime, endTime;
+  if (dragDistance < 5) return; // Dead zone for clicks
 
-  if (dragDistance < 5) { // It's a click
-    const startMinutes = startY;
-    startTime = props.currentDate.clone().startOf('day').add(startMinutes, 'minutes');
-    endTime = startTime.clone().add(30, 'minutes');
-  } else { // It's a drag
-    const startMinutes = Math.min(startY, endY);
-    const endMinutes = Math.max(startY, endY);
-    startTime = props.currentDate.clone().startOf('day').add(startMinutes, 'minutes');
-    endTime = props.currentDate.clone().startOf('day').add(endMinutes, 'minutes');
-  }
+  let startTime, endTime;
+  const startMinutes = Math.min(startY, endY);
+  const endMinutes = Math.max(startY, endY);
+  startTime = props.currentDate.clone().startOf('day').add(startMinutes, 'minutes');
+  endTime = props.currentDate.clone().startOf('day').add(endMinutes, 'minutes');
 
   selection.value.startTime = startTime;
   selection.value.endTime = endTime;
-
   showCreateDialog.value = true;
 };
 
@@ -172,37 +174,90 @@ const handleDeleteConfirm = async (eventId) => {
 
 const handleDragStart = (e, event) => {
   e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('application/json', JSON.stringify({ eventId: event.id }));
+  
   dragData.value = {
-    eventId: event.id,
-    initialY: e.clientY,
-    initialStart: moment(event.start.dateTime),
-    initialEnd: moment(event.end.dateTime),
+    duration: moment(event.end.dateTime).diff(moment(event.start.dateTime)),
+    initialMouseY: e.clientY,
   };
+
+  setTimeout(() => {
+    if (dragData.value) {
+      e.target.style.opacity = '0.5';
+    }
+  }, 0);
+};
+
+const handleDragOver = (e) => {
+  if (!dragData.value) return;
+  
+  const snappedMinutes = Math.round(e.offsetY / 15) * 15;
+  dropTarget.value.visible = true;
+  dropTarget.value.y = snappedMinutes;
+  dropTarget.value.height = moment.duration(dragData.value.duration).asMinutes();
+};
+
+const handleDragLeave = () => {
+  dropTarget.value.visible = false;
+};
+
+const handleDragEnd = (e) => {
+  if (e.target && e.target.style) {
+    e.target.style.opacity = '1';
+  }
+  dragData.value = null;
+  dropTarget.value.visible = false;
 };
 
 const handleDrop = async (e) => {
   if (!dragData.value) return;
 
-  const minutesMoved = (e.clientY - dragData.value.initialY);
-  const newStart = dragData.value.initialStart.clone().add(minutesMoved, 'minutes');
-  const newEnd = dragData.value.initialEnd.clone().add(minutesMoved, 'minutes');
+  const dragDistance = Math.abs(e.clientY - dragData.value.initialMouseY);
+  if (dragDistance < 10) {
+    handleDragEnd(e);
+    return;
+  }
 
-  const originalEvent = props.events.find(ev => ev.id === dragData.value.eventId);
+  const payload = e.dataTransfer.getData('application/json');
+  if (!payload) return;
+  const data = JSON.parse(payload);
+
+  const snappedMinutes = Math.round(e.offsetY / 15) * 15;
+  const newStart = props.currentDate.clone().startOf('day').add(snappedMinutes, 'minutes');
+  const newEnd = newStart.clone().add(dragData.value.duration);
+
+  const originalEvent = props.events.find(ev => ev.id === data.eventId);
   const updatedEvent = {
     ...originalEvent,
     start: { dateTime: newStart.toISOString() },
     end: { dateTime: newEnd.toISOString() },
   };
-
+  
   try {
     await window.api.updateCalendarEvent(updatedEvent.id, updatedEvent);
     emit('event-modified');
   } catch (error) {
     console.error('Failed to update event via drag-and-drop:', error);
   }
-
-  dragData.value = null;
 };
+
+const handleEscKey = (e) => {
+  if (e.key === 'Escape' && dragData.value) {
+    const draggedElement = document.querySelector('.event[draggable="true"][style*="opacity: 0.5"]');
+    if (draggedElement) {
+      draggedElement.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true }));
+    }
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('keydown', handleEscKey);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscKey);
+});
+
 </script>
 
 <style scoped>
@@ -241,6 +296,7 @@ const handleDrop = async (e) => {
   font-size: 12px;
   overflow: hidden;
   cursor: pointer;
+  transition: opacity 0.2s;
 }
 .selection-box {
   position: absolute;
@@ -248,6 +304,15 @@ const handleDrop = async (e) => {
   right: 0;
   background-color: rgba(0, 123, 255, 0.3);
   border: 1px solid #007bff;
+  pointer-events: none;
+}
+.drop-target {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px dashed #000;
+  z-index: 5;
   pointer-events: none;
 }
 </style>
