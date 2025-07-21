@@ -19,8 +19,9 @@
           @mousedown="handleMouseDown($event, day.date)"
           @mousemove="handleMouseMove($event, dayIndex)"
           @mouseup="handleMouseUp"
-          @dragover.prevent
-          @drop="handleDrop($event, day.date)"
+          @dragover.prevent="handleDragOver($event, dayIndex)"
+          @dragleave="handleDragLeave(dayIndex)"
+          @drop.prevent="handleDrop($event, day.date)"
         >
           <div
             class="event"
@@ -29,12 +30,14 @@
             :style="getEventStyle(event)"
             draggable="true"
             @dragstart="handleDragStart($event, event)"
+            @dragend="handleDragEnd"
             @click.stop="handleEventClick(event)"
             @mousedown.stop
           >
             {{ event.summary }}
           </div>
           <div v-if="selection.active && selection.dayIndex === dayIndex" class="selection-box" :style="selectionStyle"></div>
+          <div v-if="dropTarget.visible && dropTarget.dayIndex === dayIndex" class="drop-target" :style="dropTargetStyle"></div>
         </div>
       </div>
     </div>
@@ -56,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, defineEmits } from 'vue';
+import { ref, computed, defineEmits, onMounted, onUnmounted } from 'vue';
 import moment from 'moment';
 import CreateEventDialog from './CreateEventDialog.vue';
 import EditEventDialog from './EditEventDialog.vue';
@@ -80,6 +83,7 @@ const selection = ref({
   endTime: null,
 });
 const dragData = ref(null);
+const dropTarget = ref({ visible: false, y: 0, height: 0, dayIndex: -1 });
 
 const weekDays = computed(() => {
   const startOfWeek = props.currentDate.clone().startOf('week');
@@ -118,6 +122,11 @@ const selectionStyle = computed(() => {
   };
 });
 
+const dropTargetStyle = computed(() => ({
+  top: `${dropTarget.value.y}px`,
+  height: `${dropTarget.value.height}px`,
+}));
+
 const handleMouseDown = (e, date) => {
   selection.value.active = true;
   selection.value.startY = e.offsetY;
@@ -138,20 +147,14 @@ const handleMouseUp = () => {
   const startY = selection.value.startY;
   const endY = selection.value.endY;
   const dragDistance = Math.abs(endY - startY);
+  if (dragDistance < 5) return;
+
   const selectedDay = weekDays.value[selection.value.dayIndex].date;
 
-  let startTime, endTime;
-
-  if (dragDistance < 5) { // Click
-    const startMinutes = startY;
-    startTime = selectedDay.clone().startOf('day').add(startMinutes, 'minutes');
-    endTime = startTime.clone().add(30, 'minutes');
-  } else { // Drag
-    const startMinutes = Math.min(startY, endY);
-    const endMinutes = Math.max(startY, endY);
-    startTime = selectedDay.clone().startOf('day').add(startMinutes, 'minutes');
-    endTime = selectedDay.clone().startOf('day').add(endMinutes, 'minutes');
-  }
+  const startMinutes = Math.min(startY, endY);
+  const endMinutes = Math.max(startY, endY);
+  const startTime = selectedDay.clone().startOf('day').add(startMinutes, 'minutes');
+  const endTime = selectedDay.clone().startOf('day').add(endMinutes, 'minutes');
 
   selection.value.startTime = startTime;
   selection.value.endTime = endTime;
@@ -210,20 +213,63 @@ const handleDeleteConfirm = async (eventId) => {
 
 const handleDragStart = (e, event) => {
   e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('application/json', JSON.stringify({ eventId: event.id }));
+
   dragData.value = {
-    eventId: event.id,
     duration: moment(event.end.dateTime).diff(moment(event.start.dateTime)),
+    initialMouseY: e.clientY,
+    eventElement: e.target,
   };
+
+  setTimeout(() => {
+    if (dragData.value) {
+      e.target.style.opacity = '0.5';
+    }
+  }, 0);
+};
+
+const handleDragOver = (e, dayIndex) => {
+  if (!dragData.value) return;
+
+  const snappedMinutes = Math.round(e.offsetY / 15) * 15;
+  dropTarget.value.visible = true;
+  dropTarget.value.y = snappedMinutes;
+  dropTarget.value.height = moment.duration(dragData.value.duration).asMinutes();
+  dropTarget.value.dayIndex = dayIndex;
+};
+
+const handleDragLeave = (dayIndex) => {
+  if (dropTarget.value.dayIndex === dayIndex) {
+    dropTarget.value.visible = false;
+  }
+};
+
+const handleDragEnd = (e) => {
+  if (e.target && e.target.style) {
+    e.target.style.opacity = '1';
+  }
+  dragData.value = null;
+  dropTarget.value.visible = false;
 };
 
 const handleDrop = async (e, dropDate) => {
   if (!dragData.value) return;
 
-  const minutes = e.offsetY;
-  const newStart = dropDate.clone().startOf('day').add(minutes, 'minutes');
+  const dragDistance = Math.abs(e.clientY - dragData.value.initialMouseY);
+  if (dragDistance < 10 && moment(props.events.find(ev => ev.id === JSON.parse(e.dataTransfer.getData('application/json')).eventId)?.start.dateTime).isSame(dropDate, 'day')) {
+    handleDragEnd(e);
+    return;
+  }
+
+  const payload = e.dataTransfer.getData('application/json');
+  if (!payload) return;
+  const data = JSON.parse(payload);
+
+  const snappedMinutes = Math.round(e.offsetY / 15) * 15;
+  const newStart = dropDate.clone().startOf('day').add(snappedMinutes, 'minutes');
   const newEnd = newStart.clone().add(dragData.value.duration);
 
-  const originalEvent = props.events.find(ev => ev.id === dragData.value.eventId);
+  const originalEvent = props.events.find(ev => ev.id === data.eventId);
   const updatedEvent = {
     ...originalEvent,
     start: { dateTime: newStart.toISOString() },
@@ -231,14 +277,37 @@ const handleDrop = async (e, dropDate) => {
   };
 
   try {
-    await window.api.updateCalendarEvent(updatedEvent.id, updatedEvent);
+    const payloadEvent = {
+      summary: updatedEvent.summary,
+      description: updatedEvent.description,
+      start: updatedEvent.start,
+      end: updatedEvent.end,
+    };
+    await window.api.updateCalendarEvent(updatedEvent.id, payloadEvent);
     emit('event-modified');
   } catch (error) {
     console.error('Failed to update event via drag-and-drop:', error);
+  } finally {
+    handleDragEnd(e);
   }
-
-  dragData.value = null;
 };
+
+const handleEscKey = (e) => {
+  if (e.key === 'Escape' && dragData.value) {
+    const draggedElement = document.querySelector('.event[draggable="true"][style*="opacity: 0.5"]');
+    if (draggedElement) {
+      draggedElement.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true }));
+    }
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('keydown', handleEscKey);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscKey);
+});
 </script>
 
 <style scoped>
@@ -305,6 +374,7 @@ const handleDrop = async (e, dropDate) => {
   overflow: hidden;
   cursor: pointer;
   z-index: 10;
+  transition: opacity 0.2s;
 }
 .selection-box {
   position: absolute;
@@ -314,5 +384,14 @@ const handleDrop = async (e, dropDate) => {
   border: 1px solid #007bff;
   pointer-events: none;
   z-index: 20;
+}
+.drop-target {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px dashed #000;
+  z-index: 5;
+  pointer-events: none;
 }
 </style>
