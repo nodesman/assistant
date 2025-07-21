@@ -62,23 +62,69 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   z-index: 2000;
+  backdrop-filter: blur(5px);
 }
 .dialog-content {
   background-color: white;
-  padding: 20px;
-  border-radius: 5px;
-  width: 300px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  padding: 30px;
+  border-radius: 12px;
+  width: 350px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  text-align: center;
+  animation: fade-in 0.2s ease-out;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+p {
+  margin-bottom: 25px;
+  color: #555;
+  font-size: 16px;
 }
 .dialog-actions {
-  text-align: right;
-  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
 }
 .dialog-actions button {
-  margin-left: 10px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+.dialog-actions button:first-child {
+  background-color: #007bff;
+  color: white;
+}
+.dialog-actions button:first-child:hover {
+  background-color: #0056b3;
+}
+.dialog-actions button:last-child {
+  background-color: #f0f0f0;
+  color: #555;
+}
+.dialog-actions button:last-child:hover {
+  background-color: #e0e0e0;
 }
 .dialog-actions button:focus {
-  outline: 2px solid #007bff;
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
 }
 </style>

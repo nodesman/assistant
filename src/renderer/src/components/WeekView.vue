@@ -315,83 +315,110 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  overflow: hidden;
 }
 .header-row {
   display: flex;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #fafafa;
 }
 .body-row {
   display: flex;
   flex-grow: 1;
   overflow-y: auto;
-  max-height: 1440px; /* Fallback for container height */
+  max-height: 1440px;
 }
 .time-gutter {
-  width: 60px;
+  width: 70px;
   flex-shrink: 0;
 }
 .day-header {
   flex-grow: 1;
   text-align: center;
-  border-left: 1px solid #ccc;
-  padding: 5px 0;
+  border-left: 1px solid #e0e0e0;
+  padding: 10px 0;
+  font-weight: 600;
+  color: #555;
+}
+.day-header h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+.day-header p {
+  margin: 0;
+  font-size: 12px;
+  color: #888;
 }
 .time-axis {
-  width: 60px;
-  border-right: 1px solid #ccc;
+  width: 70px;
+  border-right: 1px solid #e0e0e0;
   flex-shrink: 0;
   pointer-events: none;
+  padding-top: 10px;
 }
 .hour-label {
   height: 60px;
   text-align: right;
-  padding-right: 5px;
+  padding-right: 10px;
   font-size: 12px;
-  color: #777;
-  border-top: 1px solid #eee;
+  color: #999;
 }
 .week-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   flex-grow: 1;
   position: relative;
+  background-image: linear-gradient(to bottom, #f0f0f0 1px, transparent 1px);
+  background-size: 100% 60px;
 }
 .day-column {
   position: relative;
-  border-left: 1px solid #ccc;
+  border-left: 1px solid #e0e0e0;
   height: 1440px; /* 24 * 60 */
   cursor: crosshair;
 }
 .event {
   position: absolute;
-  left: 5px;
-  right: 5px;
-  background-color: #e0e0ff;
-  border-left: 3px solid #007bff;
-  padding: 2px 4px;
-  border-radius: 3px;
+  left: 8px;
+  right: 8px;
+  background-color: #89cff0;
+  border-left: 4px solid #00529b;
+  padding: 6px;
+  border-radius: 6px;
   font-size: 12px;
+  font-weight: 500;
+  color: #00213f;
   overflow: hidden;
   cursor: pointer;
   z-index: 10;
-  transition: opacity 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.event:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 .selection-box {
   position: absolute;
   left: 0;
   right: 0;
-  background-color: rgba(0, 123, 255, 0.3);
-  border: 1px solid #007bff;
+  background-color: rgba(0, 123, 255, 0.2);
+  border: 1px solid rgba(0, 123, 255, 0.5);
   pointer-events: none;
   z-index: 20;
+  border-radius: 4px;
 }
 .drop-target {
   position: absolute;
-  left: 0;
-  right: 0;
-  background-color: rgba(0, 0, 0, 0.2);
-  border: 1px dashed #000;
+  left: 2px;
+  right: 2px;
+  background-color: rgba(0, 123, 255, 0.2);
+  border: 1px dashed #007bff;
   z-index: 5;
   pointer-events: none;
+  border-radius: 4px;
 }
 </style>

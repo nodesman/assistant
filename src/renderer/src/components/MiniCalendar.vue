@@ -68,16 +68,40 @@ const nextMonth = () => {
 
 <style scoped>
 .mini-calendar {
-  width: 250px;
-  border: 1px solid #ccc;
-  padding: 10px;
-  border-radius: 5px;
+  width: 280px;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 .mini-calendar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
+  padding: 0 5px;
+}
+.mini-calendar-header span {
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+}
+.mini-calendar-header button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: #888;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+.mini-calendar-header button:hover {
+  background-color: #f0f0f0;
 }
 .mini-calendar-grid {
   display: grid;
@@ -86,14 +110,17 @@ const nextMonth = () => {
 }
 .mini-day-header {
   text-align: center;
-  font-weight: bold;
+  font-weight: 600;
   font-size: 12px;
+  color: #999;
 }
 .mini-day-cell {
   text-align: center;
   cursor: pointer;
-  padding: 5px 0;
+  padding: 6px 0;
   border-radius: 50%;
+  font-size: 14px;
+  transition: background-color 0.2s, color 0.2s;
 }
 .mini-day-cell:hover {
   background-color: #f0f0f0;
@@ -101,5 +128,6 @@ const nextMonth = () => {
 .is-selected {
   background-color: #007bff;
   color: white;
+  font-weight: bold;
 }
 </style>

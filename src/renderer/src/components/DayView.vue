@@ -303,56 +303,79 @@ onUnmounted(() => {
 <style scoped>
 .day-view {
   display: flex;
-  border: 1px solid #ccc;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   height: 1440px; /* 24 hours * 60 minutes */
   position: relative;
   cursor: crosshair;
+  overflow: hidden;
 }
 .time-axis {
-  width: 60px;
-  border-right: 1px solid #ccc;
+  width: 70px;
+  border-right: 1px solid #e0e0e0;
   pointer-events: none;
+  padding-top: 10px; /* Align with grid */
 }
 .hour-label {
   height: 60px; /* 60 minutes */
   text-align: right;
-  padding-right: 5px;
+  padding-right: 10px;
   font-size: 12px;
-  color: #777;
-  border-top: 1px solid #eee;
+  color: #999;
+  position: relative;
+}
+.hour-label:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10px;
+  right: 0;
+  border-top: 1px solid #f0f0f0;
 }
 .events-container {
   flex-grow: 1;
   position: relative;
+  background-image: linear-gradient(to bottom, #f0f0f0 1px, transparent 1px);
+  background-size: 100% 60px; /* Match hour label height */
 }
 .event {
   position: absolute;
   left: 10px;
   right: 10px;
-  background-color: #e0e0ff;
-  border-left: 3px solid #007bff;
-  padding: 5px;
-  border-radius: 3px;
-  font-size: 12px;
+  background-color: #89cff0; /* A more pleasant blue */
+  border-left: 4px solid #00529b; /* A darker blue for emphasis */
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #00213f;
   overflow: hidden;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.event:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 .selection-box {
   position: absolute;
   left: 0;
   right: 0;
-  background-color: rgba(0, 123, 255, 0.3);
-  border: 1px solid #007bff;
+  background-color: rgba(0, 123, 255, 0.2);
+  border: 1px solid rgba(0, 123, 255, 0.5);
   pointer-events: none;
+  border-radius: 4px;
 }
 .drop-target {
   position: absolute;
-  left: 0;
-  right: 0;
-  background-color: rgba(0, 0, 0, 0.2);
-  border: 1px dashed #000;
+  left: 2px;
+  right: 2px;
+  background-color: rgba(0, 123, 255, 0.2);
+  border: 1px dashed #007bff;
   z-index: 5;
   pointer-events: none;
+  border-radius: 4px;
 }
 </style>

@@ -22,17 +22,25 @@ const setView = (view) => {
 
 <style scoped>
 .view-switcher {
-  margin-bottom: 10px;
+  display: inline-flex;
+  background-color: #e0e0e0;
+  border-radius: 20px;
+  padding: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 .view-switcher button {
-  padding: 5px 10px;
-  margin-right: 5px;
-  border: 1px solid #ccc;
-  background-color: #f0f0f0;
+  padding: 8px 20px;
+  border: none;
+  background-color: transparent;
   cursor: pointer;
+  font-weight: 600;
+  color: #555;
+  transition: all 0.3s ease;
+  border-radius: 16px;
 }
 .view-switcher button.active {
-  background-color: #007bff;
-  color: white;
+  background-color: #ffffff;
+  color: #007bff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 </style>

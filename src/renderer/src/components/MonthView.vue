@@ -277,46 +277,82 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.month-view {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  overflow: hidden;
+  padding: 15px;
+}
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 5px;
+  gap: 1px;
+  background-color: #e0e0e0;
+  border: 1px solid #e0e0e0;
 }
 .day-header {
   text-align: center;
-  font-weight: bold;
+  font-weight: 600;
+  padding: 10px 5px;
+  background-color: #fafafa;
+  color: #555;
 }
 .day-cell {
-  border: 1px solid #ccc;
-  height: 120px;
-  padding: 5px;
+  background-color: #fff;
+  min-height: 120px;
+  padding: 8px;
   overflow-y: auto;
   position: relative;
-  cursor: crosshair;
+  cursor: pointer;
   transition: background-color 0.2s;
 }
-.is-today {
-  background-color: #f0f0f0;
+.day-cell:hover {
+  background-color: #f9f9f9;
 }
-.is-current-month {
+.is-today .day-number {
+  background-color: #007bff;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
   font-weight: bold;
 }
-.drop-target-active {
-  background-color: rgba(0, 123, 255, 0.3);
+.is-current-month .day-number {
+  color: #333;
+  font-weight: 500;
 }
 .day-number {
   text-align: right;
+  font-size: 14px;
+  color: #aaa;
+  margin-bottom: 8px;
+  float: right;
+}
+.drop-target-active {
+  background-color: rgba(0, 123, 255, 0.2);
+  border: 1px dashed #007bff;
 }
 .events {
+  clear: both;
   margin-top: 5px;
 }
 .event {
-  background-color: #e0e0ff;
-  border-radius: 3px;
-  padding: 2px 4px;
-  margin-bottom: 2px;
+  background-color: #89cff0;
+  border-left: 4px solid #00529b;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin-bottom: 4px;
   font-size: 12px;
+  font-weight: 500;
+  color: #00213f;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: all 0.2s ease;
+}
+.event:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 </style>

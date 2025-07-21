@@ -158,40 +158,101 @@ const handleCancel = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  backdrop-filter: blur(5px);
 }
 .dialog-content {
   background-color: white;
-  padding: 20px;
-  border-radius: 5px;
-  width: 400px;
+  padding: 30px;
+  border-radius: 12px;
+  width: 450px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  animation: slide-up 0.3s ease-out;
+}
+@keyframes slide-up {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+h2 {
+  margin-top: 0;
+  margin-bottom: 25px;
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
 }
 .form-group {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 }
 .form-group label {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #555;
+  font-size: 14px;
 }
-.form-group input, .form-group textarea, .form-group select {
+.form-group select, .form-group input, .form-group textarea {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.form-group select:focus, .form-group input:focus, .form-group textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+textarea {
+  resize: vertical;
+  min-height: 100px;
 }
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
+  margin-top: 30px;
+}
+.dialog-actions button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+.dialog-actions button:nth-child(2) {
+  background-color: #007bff;
+  color: white;
+}
+.dialog-actions button:nth-child(2):hover {
+  background-color: #0056b3;
+}
+.dialog-actions button:last-child {
+  background-color: #f0f0f0;
+  color: #555;
+}
+.dialog-actions button:last-child:hover {
+  background-color: #e0e0e0;
 }
 .delete-btn {
   background-color: #dc3545;
   color: white;
-  border: none;
   margin-right: auto;
+}
+.delete-btn:hover {
+  background-color: #c82333;
 }
 </style>
