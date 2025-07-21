@@ -7,25 +7,30 @@ import { CalendarManager } from '../CalendarManager';
 import { HorizonsManager } from '../HorizonsManager';
 import { JournalManager } from '../JournalManager';
 import { Config } from '../Config';
-import { GoogleAuthService } from '../GoogleAuthService';
+import { AuthManager } from '../AuthManager';
 import { DatabaseManager } from '../DatabaseManager';
 import { TextParser } from '../TextParser';
+import { UserState } from '../UserState';
 
 // Define the development server URL
-const VITE_DEV_SERVER_URL = 'http://localhost:5173';
+const VITE_DEV_SERVER_URL = process.env['ELECTRON_VITE_URL'];
 
 async function main() {
+    // Wait for app to be ready to access userData path
+    await app.whenReady();
+
     // Instantiate managers
     const config = await Config.getInstance();
+    const userState = await UserState.getInstance();
     const dbManager = new DatabaseManager(config);
     await dbManager.init();
     await dbManager.migrateFromYaml();
 
     const projectManager = new ProjectManager(dbManager);
     const calendarManager = new CalendarManager(config);
+    const authManager = new AuthManager(config);
     const aiManager = new AIManager(config.get().ai, calendarManager, projectManager);
     const textParser = new TextParser(aiManager);
-    const googleAuthService = new GoogleAuthService(config);
     const horizonsManager = new HorizonsManager(config);
     const journalManager = new JournalManager(config);
 
@@ -34,36 +39,36 @@ async function main() {
             width: 1200,
             height: 800,
             webPreferences: {
-                preload: path.join(__dirname, '../preload/index.js'),
+                preload: path.join(__dirname, '..', 'preload', 'index.js'),
                 contextIsolation: true,
                 nodeIntegration: false,
             },
         });
 
-        if (!app.isPackaged) {
+        if (VITE_DEV_SERVER_URL) {
             mainWindow.loadURL(VITE_DEV_SERVER_URL);
             mainWindow.webContents.openDevTools();
         } else {
-            mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+            mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
         }
-
-        // First-run check
-        mainWindow.webContents.on('did-finish-load', async () => {
-            const user = await googleAuthService.getAuthorizedUser();
-            if (!user) {
-                mainWindow.webContents.send('change-tab', 'Settings');
-            }
-        });
     }
 
-    app.whenReady().then(() => {
-        createWindow();
+    app.on('ready', createWindow);
 
-        app.on('activate', () => {
-            if (BrowserWindow.getAllWindows().length === 0) {
-                createWindow();
-            }
-        });
+    // Handle geolocation permission requests
+    const partition = require('electron').session.defaultSession;
+    partition.setPermissionRequestHandler((webContents, permission, callback) => {
+        if (permission === 'geolocation') {
+            callback(true);
+        } else {
+            callback(false);
+        }
+    });
+
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+        }
     });
 
     app.on('window-all-closed', () => {
@@ -74,6 +79,7 @@ async function main() {
 
     // IPC Handlers
     ipcMain.handle('get-projects', () => projectManager.getAllProjects());
+    ipcMain.handle('create-project', (event, project) => projectManager.createProject(project));
     ipcMain.handle('get-goals', () => horizonsManager.getHorizons());
     ipcMain.handle('get-journal-entries', () => journalManager.getAllEntries());
     ipcMain.handle('get-calendar-list', () => calendarManager.getCalendarList());
@@ -82,9 +88,18 @@ async function main() {
     ipcMain.handle('update-calendar-event', (event, eventId, eventBody, calendarId) => calendarManager.updateCalendarEvent(eventId, eventBody, calendarId));
     ipcMain.handle('delete-calendar-event', (event, eventId, calendarId) => calendarManager.deleteCalendarEvent(eventId, calendarId));
     ipcMain.handle('generate-chat-response', (event, history) => aiManager.generateChatResponse(history));
-    ipcMain.handle('authorize-google-account', () => googleAuthService.authorize());
-    ipcMain.handle('get-authorized-user', () => googleAuthService.getAuthorizedUser());
-    ipcMain.handle('remove-google-account', () => googleAuthService.removeGoogleAccount());
+    ipcMain.handle('authorize-google-account', (event) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (window) {
+            return authManager.authorize(window);
+        }
+    });
+    ipcMain.handle('get-authorized-user', () => authManager.getAuthorizedUser());
+    ipcMain.handle('remove-google-account', () => authManager.removeGoogleAccount());
+
+    // Onboarding IPC Handlers
+    ipcMain.handle('get-onboarding-status', () => userState.getOnboardingStatus());
+    ipcMain.handle('set-onboarding-completed', () => userState.setOnboardingCompleted(true));
 
     // Task IPC Handlers
     ipcMain.handle('add-task', (event, projectId, task) => projectManager.addTask(projectId, task));
@@ -97,7 +112,6 @@ async function main() {
         for (const projectData of data.projects) {
             await projectManager.createProject(projectData);
         }
-        // This is a simplified import. A more robust version would associate tasks with the newly created projects.
         for (const taskData of data.tasks) {
             const projects = await projectManager.getAllProjects();
             const project = projects.find(p => p.title === taskData.projectName);
@@ -122,9 +136,6 @@ async function main() {
             log(`An unexpected error occurred: ${e.message}`);
         }
     });
-
-    // This is now handled by the extract-projects-and-tasks handler
-    // ipcMain.handle('commit-projects', ...);
 
     // Console forwarding IPC handlers
     ipcMain.on('console-log', (event, ...args) => {

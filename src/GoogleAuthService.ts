@@ -1,11 +1,12 @@
 import { google } from 'googleapis';
-import open from 'open';
+import { shell } from 'electron';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Config } from './Config';
 import { GoogleTokens, GoogleAuthConfig } from './types';
 import os from 'os';
 import { WebServer } from './WebServer';
+import { BrowserWindow } from 'electron';
 
 export class GoogleAuthService {
     private config: Config;
@@ -44,25 +45,40 @@ export class GoogleAuthService {
         return filePath;
     }
 
-    async authorize(): Promise<void> {
-        const scopes = [
-            'https://www.googleapis.com/auth/calendar',
-            'https://www.googleapis.com/auth/userinfo.email',
-            'https://www.googleapis.com/auth/userinfo.profile',
-        ];
+    async authorize(window: BrowserWindow): Promise<void> {
+        console.log('[Auth] Starting authorization process...');
+        try {
+            const scopes = [
+                'https://www.googleapis.com/auth/calendar',
+                'https://www.googleapis.com/auth/userinfo.email',
+                'https://www.googleapis.com/auth/userinfo.profile',
+            ];
 
-        const authUrl = this.oauth2Client!.generateAuthUrl({
-            access_type: 'offline',
-            scope: scopes.join(' '),
-            prompt: 'consent',
-        });
+            const authUrl = this.oauth2Client!.generateAuthUrl({
+                access_type: 'offline',
+                scope: scopes.join(' '),
+                prompt: 'consent',
+            });
 
-        const webServer = new WebServer();
-        await webServer.startForAuth(3000, async (code) => {
-            await this.getTokens(code);
-        });
+            console.log(`[Auth] Generated Auth URL: ${authUrl}`);
 
-        await open(authUrl);
+            if (!authUrl || typeof authUrl !== 'string') {
+                console.error('[Auth] Failed to generate a valid Auth URL. Check your Google Auth configuration in config.yaml.');
+                return;
+            }
+
+            const webServer = new WebServer();
+            await webServer.startForAuth(3000, window, async (code) => {
+                await this.getTokens(code);
+            });
+            console.log('[Auth] Web server started. Preparing to open external browser...');
+
+            await shell.openExternal(authUrl);
+            console.log('[Auth] shell.openExternal called successfully.');
+
+        } catch (error) {
+            console.error('[Auth] An error occurred during the authorization process:', error);
+        }
     }
 
     async getTokens(code: string): Promise<void> {

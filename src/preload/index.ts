@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('api', {
   authorizeGoogleAccount: () => ipcRenderer.invoke('authorize-google-account'),
   getAuthorizedUser: () => ipcRenderer.invoke('get-authorized-user'),
   removeGoogleAccount: () => ipcRenderer.invoke('remove-google-account'),
+  getOnboardingStatus: () => ipcRenderer.invoke('get-onboarding-status'),
+  setOnboardingCompleted: () => ipcRenderer.invoke('set-onboarding-completed'),
   onReceiveMessage: (channel, func) => {
     ipcRenderer.on(channel, (event, ...args) => func(...args));
   },

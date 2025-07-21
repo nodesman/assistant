@@ -8,15 +8,14 @@ export interface Project {
 }
 
 export interface Task {
-    id: string;
-    title: string;
-    body: string;
-    status: 'To Do' | 'In Progress' | 'Done';
-    estimated_duration_minutes?: number; // Total estimated time for the task
-    min_block_minutes?: number; // Minimum time block for scheduling
-    max_block_minutes?: number; // Maximum time block for scheduling
-    due_date?: string; // YYYY-MM-DD format
-    priority?: 'low' | 'medium' | 'high'; // Task priority
+  id: string;
+  projectId: string;
+  title: string;
+  body: string;
+  status: 'To Do' | 'In Progress' | 'Done';
+  duration?: number; // Duration in minutes
+  minChunk?: number; // Minimum chunk size in minutes
+  location?: string; // Geographic location
 }
 
 export interface GoogleAuthConfig {

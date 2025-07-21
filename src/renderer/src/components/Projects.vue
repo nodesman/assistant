@@ -4,16 +4,29 @@
     <div v-if="!selectedProject" class="projects-list-view">
       <header class="view-header">
         <h1>Projects</h1>
-        <button @click="fetchProjects" class="icon-button" title="Refresh Projects">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L22 10M2 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        </button>
+        <div>
+          <button @click="fetchProjects" class="icon-button" title="Refresh Projects">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L22 10M2 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
+          <button @click="showNewProjectDialog = true" class="button-primary" title="New Project">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            <span>New Project</span>
+          </button>
+        </div>
       </header>
-      <ul class="projects-list">
-        <li v-for="project in projects" :key="project.id" @click="selectProject(project)">
-          <span class="project-title">{{ project.title }}</span>
-          <span class="task-count">{{ project.tasks.length }} Tasks</span>
-        </li>
-      </ul>
+      <div v-if="projects.length > 0" class="projects-list-container">
+        <ul class="projects-list">
+          <li v-for="project in projects" :key="project.id" @click="selectProject(project)">
+            <span class="project-title">{{ project.title }}</span>
+            <span class="task-count">{{ project.tasks.length }} Tasks</span>
+          </li>
+        </ul>
+      </div>
+      <div v-else class="empty-state">
+        <h2>No Projects Yet</h2>
+        <p>Get started by creating your first project.</p>
+        <button @click="showNewProjectDialog = true" class="button-primary">Create Project</button>
+      </div>
     </div>
 
     <!-- View: Single Project (Master-Detail) -->
@@ -82,15 +95,56 @@
                 </select>
               </div>
               <div class="form-group">
-                <label>Description</label>
+                  <label for="duration">Duration (minutes)</label>
+                  <input type="number" id="duration" v-model="selectedTask.duration" @change="validateMultipleOf15('duration')" list="duration-options" step="15" min="0">
+                  <datalist id="duration-options">
+                      <option value="15"></option>
+                      <option value="30"></option>
+                      <option value="45"></option>
+                      <option value="60"></option>
+                      <option value="90"></option>
+                      <option value="120"></option>
+                  </datalist>
+              </div>
+              <div class="form-group">
+                  <label for="minChunk">Min Scheduling Time (minutes)</label>
+                  <input type="number" id="minChunk" v-model="selectedTask.minChunk" @change="validateMultipleOf15('minChunk')" list="minChunk-options" step="15" min="0">
+                  <datalist id="minChunk-options">
+                      <option value="15"></option>
+                      <option value="30"></option>
+                      <option value="45"></option>
+                      <option value="60"></option>
+                  </datalist>
+              </div>
+
+              <div class="tab-container">
                 <div class="editor-tabs">
-                    <button :class="{ active: currentTab === 'edit' }" @click="currentTab = 'edit'">Edit</button>
-                    <button :class="{ active: currentTab === 'preview' }" @click="currentTab = 'preview'">Preview</button>
+                    <button :class="{ active: currentTab === 'description' }" @click="currentTab = 'description'">Description</button>
+                    <button :class="{ active: currentTab === 'advanced' }" @click="currentTab = 'advanced'">Advanced</button>
                 </div>
-                <div v-if="currentTab === 'edit'">
-                    <textarea v-model="selectedTask.body" rows="10"></textarea>
+
+                <div v-if="currentTab === 'description'" class="tab-content">
+                  <div class="editor-tabs nested-tabs">
+                      <button :class="{ active: descriptionTab === 'edit' }" @click="descriptionTab = 'edit'">Edit</button>
+                      <button :class="{ active: descriptionTab === 'preview' }" @click="descriptionTab = 'preview'">Preview</button>
+                  </div>
+                  <div v-if="descriptionTab === 'edit'" class="tab-content nested-content">
+                      <textarea v-model="selectedTask.body" rows="10"></textarea>
+                  </div>
+                  <div v-else class="markdown-preview nested-content" v-html="renderedBody"></div>
                 </div>
-                <div v-else class="markdown-preview" v-html="renderedBody"></div>
+
+                <div v-if="currentTab === 'advanced'" class="tab-content">
+                  <div class="form-group">
+                    <label>Location</label>
+                    <div class="location-input-group">
+                      <input type="text" v-model="selectedTask.location" placeholder="e.g., Office, Home, 123 Main St" />
+                      <button @click="getCurrentLocation" class="icon-button" title="Get Current Location">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
         </div>
@@ -103,6 +157,14 @@
       @confirm="handleDeleteConfirm"
       @cancel="showDeleteConfirmation = false"
     />
+    <ConfirmationDialog
+      v-if="showNewProjectDialog"
+      title="Create New Project"
+      message="Enter a title for your new project."
+      :show-input="true"
+      @confirm="handleCreateProject"
+      @cancel="showNewProjectDialog = false"
+    />
   </div>
 </template>
 
@@ -111,15 +173,18 @@ import { ref, onMounted, computed } from 'vue';
 import { Project, Task } from '../../../types';
 import { marked } from 'marked';
 import GenericConfirmationDialog from './GenericConfirmationDialog.vue';
+import ConfirmationDialog from './ConfirmationDialog.vue';
 import KanbanBoard from './KanbanBoard.vue';
 
 const projects = ref<Project[]>([]);
 const selectedProject = ref<Project | null>(null);
 const selectedTask = ref<Task | null>(null);
 const showDeleteConfirmation = ref(false);
+const showNewProjectDialog = ref(false);
 const taskToDeleteId = ref<string | null>(null);
-const currentTab = ref<'edit' | 'preview'>('edit');
 const currentTaskView = ref<'List' | 'Kanban'>('List');
+const currentTab = ref<'description' | 'advanced'>('description');
+const descriptionTab = ref<'edit' | 'preview'>('edit');
 
 const renderedBody = computed(() => selectedTask.value ? marked(selectedTask.value.body || '') : '');
 
@@ -138,6 +203,17 @@ const fetchProjects = async (selectLastProject = false) => {
   }
 };
 
+const handleCreateProject = async (title: string) => {
+  if (!title) return;
+  try {
+    await window.api.createProject({ title });
+    await fetchProjects();
+    showNewProjectDialog.value = false;
+  } catch (error) {
+    console.error('Error creating project:', error);
+  }
+};
+
 const selectProject = (project: Project) => {
   selectedProject.value = project;
   selectedTask.value = null;
@@ -150,8 +226,9 @@ const goBackToProjects = () => {
 };
 
 const selectTask = (task: Task) => {
-  selectedTask.value = { ...task }; // Use a copy for editing
-  currentTab.value = 'edit';
+  selectedTask.value = { ...task };
+  currentTab.value = 'description';
+  descriptionTab.value = 'edit';
 };
 
 const deselectTask = () => {
@@ -166,9 +243,48 @@ const addNewTask = (status: string = 'To Do') => {
     body: '',
     status: status,
     projectId: selectedProject.value.id,
+    duration: 60,
+    minChunk: 30,
+    location: '',
   };
   selectTask(newTask);
 };
+
+const validateMultipleOf15 = (field: 'duration' | 'minChunk') => {
+    if (selectedTask.value && selectedTask.value[field]) {
+        const value = selectedTask.value[field] as number;
+        if (value % 15 !== 0) {
+            selectedTask.value[field] = Math.round(value / 15) * 15;
+        }
+    }
+};
+
+const getCurrentLocation = () => {
+  if (!navigator.geolocation) {
+    alert("Geolocation is not supported by your browser.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(async (position) => {
+    const { latitude, longitude } = position.coords;
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
+      const data = await response.json();
+      if (data.display_name && selectedTask.value) {
+        selectedTask.value.location = data.display_name;
+      } else {
+        alert("Could not retrieve address for your location.");
+      }
+    } catch (error) {
+      console.error("Error fetching address:", error);
+      alert("An error occurred while fetching the address.");
+    }
+  }, (error) => {
+    console.error("Geolocation error:", error);
+    alert(`Could not get your location: ${error.message}`);
+  });
+};
+
 
 const saveSelectedTask = async () => {
   if (!selectedTask.value || !selectedProject.value) return;
@@ -248,11 +364,15 @@ onMounted(fetchProjects);
   height: 100%;
 }
 
+.projects-list-container {
+  overflow-y: auto;
+  height: 100%;
+}
+
 .projects-list {
   list-style: none;
   padding: 0.5rem;
   margin: 0;
-  overflow-y: auto;
 }
 
 .projects-list li {
@@ -282,6 +402,26 @@ onMounted(fetchProjects);
   background-color: var(--background-primary);
   padding: 4px 10px;
   border-radius: 12px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  text-align: center;
+  padding: 2rem;
+}
+
+.empty-state h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
 }
 
 .project-detail-view {
@@ -455,36 +595,90 @@ textarea {
   font-family: inherit;
 }
 
+.tab-container {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-top: 1rem;
+}
+
 .editor-tabs {
   display: flex;
-  margin-bottom: -1px;
+  border-bottom: 1px solid var(--border-color);
 }
+.editor-tabs.nested-tabs {
+    border-top: none;
+    border-bottom: 1px solid var(--border-color);
+}
+
 .editor-tabs button {
   padding: 8px 16px;
   cursor: pointer;
-  border: 1px solid var(--border-color);
+  border: none;
+  border-right: 1px solid var(--border-color);
   background-color: var(--background-primary);
-  border-bottom: 1px solid var(--border-color);
-  position: relative;
-  top: 1px;
-  border-radius: 4px 4px 0 0;
+  font-weight: 500;
+  flex-grow: 1;
 }
+.editor-tabs button:last-child {
+    border-right: none;
+}
+
 .editor-tabs button.active {
   background-color: var(--background-secondary);
-  border-bottom: 1px solid var(--background-secondary);
+  color: var(--accent-primary);
 }
+
+.tab-content {
+    padding: 1rem;
+}
+.tab-content.nested-content {
+    padding: 0;
+}
+
 .markdown-preview {
-  border: 1px solid var(--border-color);
   padding: 10px;
-  border-radius: 0 6px 6px 6px;
   background-color: var(--background-secondary);
   min-height: 140px;
   max-height: 400px;
   overflow: auto;
 }
-textarea {
-    border-radius: 0 6px 6px 6px;
+
+.tab-content.nested-content textarea {
+    width: 100%;
+    box-sizing: border-box; /*  Fix for overflow */
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1rem;
+    background-color: #fdfdfd;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    resize: vertical;
+    min-height: 120px;
+    font-family: inherit;
 }
+.tab-content.nested-content textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.location-input-group {
+    display: flex;
+    align-items: center;
+}
+.location-input-group input {
+    flex-grow: 1;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+.location-input-group button {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border: 1px solid var(--border-color);
+    border-left: none;
+    padding: 6px;
+}
+
 
 .icon-button, .icon-button-danger {
   background: none;
@@ -506,4 +700,22 @@ textarea {
     background-color: #fee2e2;
     color: #b91c1c;
 }
+
+.button-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--accent-primary);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+.button-primary:hover {
+  opacity: 0.9;
+}
 </style>
+

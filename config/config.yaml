@@ -1,10 +1,16 @@
-# Default configuration for the Journaling Tool
-journal_directory: "~/.personal_system/journal_entries" # Specific, fixed location
-ai:
-  # provider: "google" # or "openai"
-  model: "gemini-2.5-pro"
-  api_key_env_var: "GOOGLE_API_KEY" # Or specific key for this tool
-  # The main AI interaction prompt is now handled internally by the structuring workflow logic in JournalManager.ts.
-  # The old 'reflection_prompt' is no longer used by the primary '/integrate' workflow.
+journal_directory: "~/.personal_system/journal_entries"
+editor_command: "code -w"
 
-editor_command: "code -w" # Command to launch editor (e.g., "subl -w", "nvim", "code -w"). '-w' is often needed to wait.
+ai:
+  model: "gemini-1.5-flash-latest"
+  api_key_env_var: "GOOGLE_API_KEY"
+  reflection_prompt: "Please reflect on this entry:
+{journal_entry}"
+
+google_auth:
+  client_id: ""
+  client_secret: ""
+  redirect_uris:
+    - "http://localhost:3000/oauth2callback"
+  token_path: "~/.config/personal-journal-cli/google-tokens.json"
+

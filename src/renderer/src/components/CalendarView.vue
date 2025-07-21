@@ -1,43 +1,62 @@
 <template>
   <div class="calendar-view">
-    <div class="calendar-header">
-      <div class="header-left">
-        <button @click="goToToday" class="nav-button today-button">Today</button>
-        <div class="nav-button-group">
-          <button @click="changeDate(-1)" class="nav-button">&lt;</button>
-          <button @click="changeDate(1)" class="nav-button">&gt;</button>
-        </div>
-        <h2 class="current-date">{{ formattedCurrentDate }}</h2>
-      </div>
-      <div class="header-center">
-        <ViewSwitcher :current-view="activeViewName" @view-changed="handleViewChange" />
-      </div>
-      <div class="header-right">
-        <!-- Placeholder for future elements like a search bar or settings -->
-      </div>
+    <div v-if="!isAuthenticated" class="auth-prompt">
+      <h2>Connect your Google Account</h2>
+      <p>To see and manage your calendar events, you need to connect your Google account.</p>
+      <button @click="authorize" class="auth-button">Connect Google Account</button>
     </div>
-    <component
-      :is="activeView"
-      :events="events"
-      :current-date="currentDate"
-      @event-modified="fetchEvents"
-    />
+    <div v-else class="calendar-container">
+      <div class="calendar-header">
+        <div class="header-left">
+          <button @click="goToToday" class="nav-button today-button">Today</button>
+          <div class="nav-button-group">
+            <button @click="changeDate(-1)" class="nav-button">&lt;</button>
+            <button @click="changeDate(1)" class="nav-button">&gt;</button>
+          </div>
+          <h2 class="current-date">{{ formattedCurrentDate }}</h2>
+        </div>
+        <div class="header-center">
+          <ViewSwitcher :current-view="activeViewName" @view-changed="handleViewChange" />
+        </div>
+        <div class="header-right">
+          <!-- Placeholder for future elements like a search bar or settings -->
+        </div>
+      </div>
+      <component
+        :is="activeView"
+        :events="events"
+        :current-date="currentDate"
+        @event-modified="fetchEvents"
+      />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import moment from 'moment';
 import MonthView from './MonthView.vue';
 import WeekView from './WeekView.vue';
 import DayView from './DayView.vue';
 import ViewSwitcher from './ViewSwitcher.vue';
 
+const isAuthenticated = ref(false);
 const events = ref([]);
 const currentDate = ref(moment());
 const activeViewName = ref('Month'); // Default view
 
+const checkAuthStatus = async () => {
+  try {
+    const user = await window.api.getAuthorizedUser();
+    isAuthenticated.value = !!user;
+  } catch (error) {
+    console.error('Error checking auth status:', error);
+    isAuthenticated.value = false;
+  }
+};
+
 const fetchEvents = async () => {
+  if (!isAuthenticated.value) return;
   try {
     events.value = await window.api.getCalendarEvents();
   } catch (error) {
@@ -45,7 +64,34 @@ const fetchEvents = async () => {
   }
 };
 
-onMounted(fetchEvents);
+const authorize = async () => {
+  try {
+    await window.api.authorizeGoogleAccount();
+    await checkAuthStatus();
+  } catch (error) {
+    console.error('Google Authorization failed:', error);
+  }
+};
+
+onMounted(async () => {
+  await checkAuthStatus();
+  if (isAuthenticated.value) {
+    await fetchEvents();
+  }
+  if (window.api?.onReceiveMessage) {
+    window.api.onReceiveMessage('google-auth-success', async () => {
+      await checkAuthStatus();
+    });
+  }
+});
+
+watch(isAuthenticated, (isAuth) => {
+  if (isAuth) {
+    fetchEvents();
+  } else {
+    events.value = [];
+  }
+});
 
 const activeView = computed(() => {
   switch (activeViewName.value) {
@@ -85,6 +131,50 @@ const goToToday = () => {
   height: 100vh;
   padding: 20px;
   background-color: #f9f9f9;
+}
+
+.auth-prompt {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  text-align: center;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 40px;
+}
+
+.auth-prompt h2 {
+  font-size: 24px;
+  margin-bottom: 16px;
+}
+
+.auth-prompt p {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.auth-button {
+  background-color: #4285F4;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.auth-button:hover {
+  background-color: #357ae8;
+}
+
+.calendar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .calendar-header {

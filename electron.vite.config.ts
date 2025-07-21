@@ -1,3 +1,4 @@
+import { resolve } from 'path'
 import { defineConfig } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
 
@@ -18,7 +19,15 @@ export default defineConfig({
       },
     },
   },
-  preload: {},
+  preload: {
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'src/preload/index.ts')
+        }
+      }
+    }
+  },
   renderer: {
     plugins: [vue()],
     optimizeDeps: {
