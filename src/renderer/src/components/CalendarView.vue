@@ -19,7 +19,7 @@
           <ViewSwitcher :current-view="activeViewName" @view-changed="handleViewChange" />
         </div>
         <div class="header-right">
-          <!-- Placeholder for future elements like a search bar or settings -->
+          <button @click="fetchEvents" class="nav-button refresh-button">Refresh</button>
         </div>
       </div>
       <component
