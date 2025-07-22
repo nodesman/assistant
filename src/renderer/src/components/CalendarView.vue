@@ -19,12 +19,25 @@
           <ViewSwitcher :current-view="activeViewName" @view-changed="handleViewChange" />
         </div>
         <div class="header-right">
-          <button @click="fetchEvents" class="nav-button refresh-button">Refresh</button>
+          <div class="popover-wrapper">
+            <button @click="toggleSettingsPopover" class="nav-button settings-button" title="Calendar settings">
+              <i class="fas fa-calendar-alt"></i>
+            </button>
+            <div v-if="isSettingsPopoverVisible" class="popover" v-click-outside="closeSettingsPopover">
+              <MiniCalendar :selected-date="currentDate" @date-selected="handleDateSelected" />
+              <hr class="popover-divider" />
+              <CalendarList
+                :calendars="calendars"
+                :visible-calendars="visibleCalendarIds"
+                @visibility-changed="handleVisibilityChange"
+              />
+            </div>
+          </div>
         </div>
       </div>
       <component
         :is="activeView"
-        :events="events"
+        :events="filteredEvents"
         :current-date="currentDate"
         @event-modified="fetchEvents"
       />
@@ -39,11 +52,16 @@ import MonthView from './MonthView.vue';
 import WeekView from './WeekView.vue';
 import DayView from './DayView.vue';
 import ViewSwitcher from './ViewSwitcher.vue';
+import CalendarList from './CalendarList.vue';
+import MiniCalendar from './MiniCalendar.vue';
 
 const isAuthenticated = ref(false);
 const events = ref([]);
+const calendars = ref([]);
+const visibleCalendarIds = ref<string[]>([]);
 const currentDate = ref(moment());
-const activeViewName = ref('Month'); // Default view
+const activeViewName = ref('Month');
+const isSettingsPopoverVisible = ref(false);
 
 const checkAuthStatus = async () => {
   try {
@@ -58,9 +76,21 @@ const checkAuthStatus = async () => {
 const fetchEvents = async () => {
   if (!isAuthenticated.value) return;
   try {
-    events.value = await window.api.getCalendarEvents();
+    events.value = await window.api.getCalendarEvents(visibleCalendarIds.value);
   } catch (error) {
     console.error('Failed to fetch calendar events:', error);
+  }
+};
+
+const fetchCalendars = async () => {
+  if (!isAuthenticated.value) return;
+  try {
+    calendars.value = await window.api.getCalendarList();
+    if (visibleCalendarIds.value.length === 0 && calendars.value.length > 0) {
+      visibleCalendarIds.value = calendars.value.map(c => c.id);
+    }
+  } catch (error) {
+    console.error('Failed to fetch calendar list:', error);
   }
 };
 
@@ -76,33 +106,50 @@ const authorize = async () => {
 onMounted(async () => {
   await checkAuthStatus();
   if (isAuthenticated.value) {
+    await fetchCalendars();
     await fetchEvents();
   }
   if (window.api?.onReceiveMessage) {
     window.api.onReceiveMessage('google-auth-success', async () => {
       await checkAuthStatus();
+      if (isAuthenticated.value) {
+        await fetchCalendars();
+        await fetchEvents();
+      }
     });
   }
 });
 
 watch(isAuthenticated, (isAuth) => {
   if (isAuth) {
+    fetchCalendars();
     fetchEvents();
   } else {
     events.value = [];
+    calendars.value = [];
+    visibleCalendarIds.value = [];
+  }
+});
+
+watch(visibleCalendarIds, () => {
+  if (isAuthenticated.value) {
+    fetchEvents();
   }
 });
 
 const activeView = computed(() => {
   switch (activeViewName.value) {
-    case 'Week':
-      return WeekView;
-    case 'Day':
-      return DayView;
-    case 'Month':
-    default:
-      return MonthView;
+    case 'Week': return WeekView;
+    case 'Day': return DayView;
+    default: return MonthView;
   }
+});
+
+const filteredEvents = computed(() => {
+  if (visibleCalendarIds.value.length === 0) {
+    return events.value;
+  }
+  return events.value.filter(event => visibleCalendarIds.value.includes(event.calendarId));
 });
 
 const formattedCurrentDate = computed(() => {
@@ -111,6 +158,15 @@ const formattedCurrentDate = computed(() => {
 
 const handleViewChange = (viewName) => {
   activeViewName.value = viewName;
+};
+
+const handleVisibilityChange = (newVisibleIds: string[]) => {
+  visibleCalendarIds.value = newVisibleIds;
+};
+
+const handleDateSelected = (date) => {
+  currentDate.value = date;
+  isSettingsPopoverVisible.value = false;
 };
 
 const changeDate = (amount) => {
@@ -122,6 +178,27 @@ const goToToday = () => {
   currentDate.value = moment();
 };
 
+const toggleSettingsPopover = () => {
+  isSettingsPopoverVisible.value = !isSettingsPopoverVisible.value;
+};
+
+const closeSettingsPopover = () => {
+  isSettingsPopoverVisible.value = false;
+};
+
+const vClickOutside = {
+  mounted(el, binding) {
+    el.__ClickOutsideHandler__ = (event) => {
+      if (!(el === event.target || el.contains(event.target))) {
+        binding.value(event);
+      }
+    };
+    document.body.addEventListener('click', el.__ClickOutsideHandler__);
+  },
+  unmounted(el) {
+    document.body.removeEventListener('click', el.__ClickOutsideHandler__);
+  },
+};
 </script>
 
 <style scoped>
@@ -203,9 +280,10 @@ const goToToday = () => {
 .header-right {
   flex: 1;
   justify-content: flex-end;
+  position: relative;
 }
 
-.nav-button, .today-button {
+.nav-button, .today-button, .settings-button {
   background: none;
   border: 1px solid #e0e0e0;
   cursor: pointer;
@@ -217,7 +295,7 @@ const goToToday = () => {
   align-items: center;
 }
 
-.nav-button:hover, .today-button:hover {
+.nav-button:hover, .today-button:hover, .settings-button:hover {
   background-color: #f0f0f0;
   border-color: #dcdcdc;
 }
@@ -243,11 +321,42 @@ const goToToday = () => {
   margin: 0 4px;
 }
 
+.settings-button {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 16px;
+  border-radius: 50%;
+}
+
 .current-date {
   font-size: 22px;
   font-weight: 600;
   color: #333;
   margin: 0;
   padding-left: 12px;
+}
+
+.popover-wrapper {
+  position: relative;
+}
+
+.popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  z-index: 1000;
+  margin-top: 8px;
+  width: 300px;
+  padding: 10px 0;
+}
+
+.popover-divider {
+  border: none;
+  border-top: 1px solid #e0e0e0;
+  margin: 10px 0;
 }
 </style>

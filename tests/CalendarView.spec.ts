@@ -1,53 +1,96 @@
-import { mount } from '@vue/test-utils'
-import { describe, it, expect, vi } from 'vitest'
-import CalendarView from '../src/renderer/src/components/CalendarView.vue'
+import { mount } from '@vue/test-utils';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import CalendarView from '../src/renderer/src/components/CalendarView.vue';
+import MiniCalendar from '../src/renderer/src/components/MiniCalendar.vue';
+import CalendarList from '../src/renderer/src/components/CalendarList.vue';
+import moment from 'moment';
 
 // Mock the window.api object
 const mockApi = {
   getAuthorizedUser: vi.fn(),
   getCalendarEvents: vi.fn(),
+  getCalendarList: vi.fn(),
   authorizeGoogleAccount: vi.fn(),
   onReceiveMessage: vi.fn(),
-  getCalendarList: vi.fn(),
-  createEvent: vi.fn(),
-  updateEvent: vi.fn(),
-  deleteEvent: vi.fn(),
-}
+};
 
-global.window.api = mockApi
+global.window.api = mockApi;
 
 describe('CalendarView.vue', () => {
-  it('renders the refresh button when authenticated', async () => {
-    // Arrange
-    mockApi.getAuthorizedUser.mockResolvedValue({ id: 'test-user' })
-    mockApi.getCalendarEvents.mockResolvedValue([])
-    mockApi.getCalendarList.mockResolvedValue([])
-    const wrapper = mount(CalendarView)
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockApi.getAuthorizedUser.mockResolvedValue({ id: 'test-user' });
+    mockApi.getCalendarEvents.mockResolvedValue([]);
+    mockApi.getCalendarList.mockResolvedValue([
+      { id: 'cal1', summary: 'Test Calendar 1' },
+      { id: 'cal2', summary: 'Test Calendar 2' },
+    ]);
+  });
 
-    // Act
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
+  it('renders the main calendar view when authenticated', async () => {
+    const wrapper = mount(CalendarView);
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.calendar-container').exists()).toBe(true);
+    expect(wrapper.find('.auth-prompt').exists()).toBe(false);
+  });
 
+  it('shows the auth prompt when not authenticated', async () => {
+    mockApi.getAuthorizedUser.mockResolvedValue(null);
+    const wrapper = mount(CalendarView);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.auth-prompt').exists()).toBe(true);
+    expect(wrapper.find('.calendar-container').exists()).toBe(false);
+  });
 
-    // Assert
-    const refreshButton = wrapper.find('.refresh-button')
-    expect(refreshButton.exists()).toBe(true)
-  })
+  it('toggles the settings popover when the settings button is clicked', async () => {
+    const wrapper = mount(CalendarView);
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
 
-  it('calls fetchEvents when the refresh button is clicked', async () => {
-    // Arrange
-    mockApi.getAuthorizedUser.mockResolvedValue({ id: 'test-user' })
-    mockApi.getCalendarEvents.mockResolvedValue([])
-    mockApi.getCalendarList.mockResolvedValue([])
-    const wrapper = mount(CalendarView)
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
+    const settingsButton = wrapper.find('.settings-button');
+    expect(wrapper.find('.popover').exists()).toBe(false);
 
-    // Act
-    const refreshButton = wrapper.find('.refresh-button')
-    await refreshButton.trigger('click')
+    await settingsButton.trigger('click');
+    expect(wrapper.find('.popover').exists()).toBe(true);
+    expect(wrapper.findComponent(MiniCalendar).exists()).toBe(true);
+    expect(wrapper.findComponent(CalendarList).exists()).toBe(true);
 
-    // Assert
-    expect(mockApi.getCalendarEvents).toHaveBeenCalled()
-  })
-})
+    await settingsButton.trigger('click');
+    expect(wrapper.find('.popover').exists()).toBe(false);
+  });
+
+  it('updates the current date when a date is selected in MiniCalendar', async () => {
+    const wrapper = mount(CalendarView);
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('.settings-button').trigger('click');
+    const miniCalendar = wrapper.findComponent(MiniCalendar);
+
+    const newDate = moment().add(5, 'days');
+    miniCalendar.vm.$emit('date-selected', newDate);
+    await wrapper.vm.$nextTick();
+
+    // Check if currentDate in CalendarView has been updated
+    // Note: Direct state checking is complex, we'll check the formatted date
+    expect(wrapper.find('.current-date').text()).toBe(newDate.format('MMMM YYYY'));
+    // Popover should close after date selection
+    expect(wrapper.find('.popover').exists()).toBe(false);
+  });
+
+  it('fetches events when visible calendars change', async () => {
+    const wrapper = mount(CalendarView);
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('.settings-button').trigger('click');
+    const calendarList = wrapper.findComponent(CalendarList);
+
+    mockApi.getCalendarEvents.mockClear(); // Clear previous calls from onMounted
+    calendarList.vm.$emit('visibility-changed', ['cal1']);
+    await wrapper.vm.$nextTick();
+
+    expect(mockApi.getCalendarEvents).toHaveBeenCalledWith(['cal1']);
+  });
+});
