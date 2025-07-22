@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CalendarView from '../src/renderer/src/components/CalendarView.vue';
 import MiniCalendar from '../src/renderer/src/components/MiniCalendar.vue';
 import CalendarList from '../src/renderer/src/components/CalendarList.vue';
+import ViewSwitcher from '../src/renderer/src/components/ViewSwitcher.vue';
 import moment from 'moment';
 
 // Mock the window.api object
@@ -56,8 +57,28 @@ describe('CalendarView.vue', () => {
     expect(wrapper.findComponent(MiniCalendar).exists()).toBe(true);
     expect(wrapper.findComponent(CalendarList).exists()).toBe(true);
 
-    await settingsButton.trigger('click');
-    expect(wrapper.find('.popover').exists()).toBe(false);
+  await settingsButton.trigger('click');
+  expect(wrapper.find('.popover').exists()).toBe(false);
+});
+
+  it('toggles the mini calendar when the calendar toggle button is clicked', async () => {
+    const wrapper = mount(CalendarView);
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+
+    const toggleBtn = wrapper.find('.calendar-toggle-btn');
+    expect(toggleBtn.exists()).toBe(true);
+
+    // Sidebar hidden by default
+    expect(wrapper.find('.calendar-sidebar').exists()).toBe(false);
+
+    // Show sidebar
+    await toggleBtn.trigger('click');
+    expect(wrapper.find('.calendar-sidebar').exists()).toBe(true);
+
+    // Hide sidebar again
+    await toggleBtn.trigger('click');
+    expect(wrapper.find('.calendar-sidebar').exists()).toBe(false);
   });
 
   it('updates the current date when a date is selected in MiniCalendar', async () => {
@@ -91,6 +112,10 @@ describe('CalendarView.vue', () => {
     calendarList.vm.$emit('visibility-changed', ['cal1']);
     await wrapper.vm.$nextTick();
 
-    expect(mockApi.getCalendarEvents).toHaveBeenCalledWith(['cal1']);
+    expect(mockApi.getCalendarEvents).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      ['cal1'],
+    );
   });
 });

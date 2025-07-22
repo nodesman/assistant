@@ -8,6 +8,11 @@
     <div v-else class="calendar-container">
       <div class="calendar-header">
         <div class="header-left">
+          <button @click="toggleMiniCalendar" class="icon-button calendar-toggle-btn" title="Toggle Calendar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"/>
+            </svg>
+          </button>
           <button @click="goToToday" class="nav-button today-button">Today</button>
           <div class="nav-button-group">
             <button @click="changeDate(-1)" class="nav-button">&lt;</button>
@@ -35,12 +40,21 @@
           </div>
         </div>
       </div>
-      <component
-        :is="activeView"
-        :events="filteredEvents"
-        :current-date="currentDate"
-        @event-modified="fetchEvents"
-      />
+      <div class="calendar-content-area">
+        <div class="calendar-sidebar-container">
+          <div class="calendar-sidebar" v-if="!isMiniCalendarCollapsed">
+            <MiniCalendar :selected-date="currentDate" @date-selected="handleDateSelected" />
+            <hr>
+            <CalendarList :calendars="calendars" :visible-calendars="visibleCalendarIds" @visibility-changed="handleVisibilityChange" />
+          </div>
+        </div>
+        <component
+          :is="activeView"
+          :events="filteredEvents"
+          :current-date="currentDate"
+          @event-modified="fetchEvents"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -62,6 +76,11 @@ const visibleCalendarIds = ref<string[]>([]);
 const currentDate = ref(moment());
 const activeViewName = ref('Month');
 const isSettingsPopoverVisible = ref(false);
+const isMiniCalendarCollapsed = ref(true);
+
+const toggleMiniCalendar = () => {
+  isMiniCalendarCollapsed.value = !isMiniCalendarCollapsed.value;
+};
 
 const checkAuthStatus = async () => {
   try {
@@ -75,8 +94,12 @@ const checkAuthStatus = async () => {
 
 const fetchEvents = async () => {
   if (!isAuthenticated.value) return;
+  // Fetch events in the range for the active view (month/week/day)
   try {
-    events.value = await window.api.getCalendarEvents(visibleCalendarIds.value);
+    const view = activeViewName.value.toLowerCase();
+    const timeMin = currentDate.value.clone().startOf(view).toISOString();
+    const timeMax = currentDate.value.clone().endOf(view).toISOString();
+    events.value = await window.api.getCalendarEvents(timeMin, timeMax, visibleCalendarIds.value);
   } catch (error) {
     console.error('Failed to fetch calendar events:', error);
   }
@@ -136,6 +159,12 @@ watch(visibleCalendarIds, () => {
     fetchEvents();
   }
 });
+// re-fetch when date or view changes
+watch([currentDate, activeViewName], () => {
+  if (isAuthenticated.value) {
+    fetchEvents();
+  }
+});
 
 const activeView = computed(() => {
   switch (activeViewName.value) {
@@ -153,7 +182,19 @@ const filteredEvents = computed(() => {
 });
 
 const formattedCurrentDate = computed(() => {
-  return currentDate.value.format('MMMM YYYY');
+  switch (activeViewName.value) {
+    case 'Month':
+      return currentDate.value.format('MMMM YYYY');
+    case 'Week': {
+      const startOfWeek = currentDate.value.clone().startOf('week').format('MMM D');
+      const endOfWeek = currentDate.value.clone().endOf('week').format('MMM D, YYYY');
+      return `${startOfWeek} - ${endOfWeek}`;
+    }
+    case 'Day':
+      return currentDate.value.format('dddd, MMMM D, YYYY');
+    default:
+      return '';
+  }
 });
 
 const handleViewChange = (viewName) => {
@@ -255,30 +296,33 @@ const vClickOutside = {
 }
 
 .calendar-header {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
 }
 
+/* Layout header sections and center the view-switcher */
 .header-left, .header-center, .header-right {
   display: flex;
   align-items: center;
 }
 
 .header-left {
-  flex: 1;
+  flex: none;
   justify-content: flex-start;
   gap: 12px;
 }
 
 .header-center {
-  flex: 1;
-  justify-content: center;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .header-right {
-  flex: 1;
+  flex: none;
   justify-content: flex-end;
   position: relative;
 }
@@ -335,10 +379,36 @@ const vClickOutside = {
   color: #333;
   margin: 0;
   padding-left: 12px;
+  white-space: nowrap;
 }
 
 .popover-wrapper {
   position: relative;
+}
+
+.calendar-content-area {
+  position: relative;
+  flex-grow: 1;
+}
+.calendar-sidebar-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 100;
+}
+.calendar-sidebar {
+  background: white;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+  border-radius: 8px;
+  padding: 5px;
+}
+hr {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 10px 0;
+}
+.calendar-toggle-btn {
+  border: 1px solid #e0e0e0;
 }
 
 .popover {
