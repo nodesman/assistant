@@ -24,6 +24,12 @@
           <ViewSwitcher :current-view="activeViewName" @view-changed="handleViewChange" />
         </div>
         <div class="header-right">
+          <button @click="refreshEvents" :disabled="isFetchingEvents" class="icon-button refresh-button" title="Refresh events">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="{ spinning: isFetchingEvents }">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+          </button>
           <div class="popover-wrapper">
             <button @click="toggleSettingsPopover" class="nav-button settings-button" title="Calendar settings">
               <i class="fas fa-calendar-alt"></i>
@@ -77,6 +83,7 @@ const currentDate = ref(moment());
 const activeViewName = ref('Month');
 const isSettingsPopoverVisible = ref(false);
 const isMiniCalendarCollapsed = ref(true);
+const isFetchingEvents = ref(false);
 
 const toggleMiniCalendar = () => {
   isMiniCalendarCollapsed.value = !isMiniCalendarCollapsed.value;
@@ -93,16 +100,28 @@ const checkAuthStatus = async () => {
 };
 
 const fetchEvents = async () => {
-  if (!isAuthenticated.value) return;
-  // Fetch events in the range for the active view (month/week/day)
+  if (!isAuthenticated.value || isFetchingEvents.value) return;
+  isFetchingEvents.value = true;
   try {
+    console.log('Fetching events for calendars:', JSON.stringify(visibleCalendarIds.value));
     const view = activeViewName.value.toLowerCase();
     const timeMin = currentDate.value.clone().startOf(view).toISOString();
     const timeMax = currentDate.value.clone().endOf(view).toISOString();
-    events.value = await window.api.getCalendarEvents(timeMin, timeMax, visibleCalendarIds.value);
+    events.value = await window.api.getCalendarEvents(
+      timeMin,
+      timeMax,
+      [...visibleCalendarIds.value]
+    );
+    console.log(`Fetched ${events.value.length} events.`);
   } catch (error) {
     console.error('Failed to fetch calendar events:', error);
+  } finally {
+    isFetchingEvents.value = false;
   }
+};
+
+const refreshEvents = () => {
+  fetchEvents();
 };
 
 const fetchCalendars = async () => {
@@ -304,30 +323,28 @@ const vClickOutside = {
 }
 
 /* Layout header sections and center the view-switcher */
-.header-left, .header-center, .header-right {
-  display: flex;
-  align-items: center;
-}
-
 .header-left {
-  flex: none;
+  flex: 1 1 0%;
   justify-content: flex-start;
   gap: 12px;
+  min-width: 0;
 }
 
 .header-center {
+  flex: none;
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .header-right {
-  flex: none;
+  flex: 1 1 0%;
   justify-content: flex-end;
   position: relative;
+  gap: 12px;
 }
 
-.nav-button, .today-button, .settings-button {
+.nav-button, .today-button, .settings-button, .refresh-button {
   background: none;
   border: 1px solid #e0e0e0;
   cursor: pointer;
@@ -339,7 +356,7 @@ const vClickOutside = {
   align-items: center;
 }
 
-.nav-button:hover, .today-button:hover, .settings-button:hover {
+.nav-button:hover, .today-button:hover, .settings-button:hover, .refresh-button:hover {
   background-color: #f0f0f0;
   border-color: #dcdcdc;
 }
@@ -347,6 +364,7 @@ const vClickOutside = {
 .today-button {
   padding: 8px 16px;
   border-radius: 8px;
+  flex-shrink: 0;
 }
 
 .nav-button-group {
@@ -365,7 +383,7 @@ const vClickOutside = {
   margin: 0 4px;
 }
 
-.settings-button {
+.settings-button, .refresh-button {
   width: 36px;
   height: 36px;
   padding: 0;
@@ -380,6 +398,8 @@ const vClickOutside = {
   margin: 0;
   padding-left: 12px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .popover-wrapper {
@@ -389,18 +409,22 @@ const vClickOutside = {
 .calendar-content-area {
   position: relative;
   flex-grow: 1;
+  overflow: hidden;
 }
 .calendar-sidebar-container {
   position: absolute;
   top: 0;
   left: 0;
   z-index: 100;
+  height: 100%;
 }
 .calendar-sidebar {
   background: white;
   box-shadow: 0 5px 15px rgba(0,0,0,0.15);
   border-radius: 8px;
   padding: 5px;
+  height: 100%;
+  overflow-y: auto;
 }
 hr {
   border: none;
@@ -428,5 +452,14 @@ hr {
   border: none;
   border-top: 1px solid #e0e0e0;
   margin: 10px 0;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
 }
 </style>
