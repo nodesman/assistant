@@ -48,17 +48,24 @@
         </div>
       </div>
     </div>
-    <div v-if="isAiReady" class="input-area">
-      <textarea
-        v-model="newMessage"
-        @keyup.enter.prevent="sendMessage()"
-        @paste="handlePaste"
-        placeholder="Type your message or paste text to import..."
-        :disabled="isThinking"
-      ></textarea>
-      <button @click="sendMessage()" :disabled="isThinking">
-        {{ isThinking ? 'Thinking...' : 'Send' }}
-      </button>
+    <div v-if="isAiReady" class="input-area-container">
+      <div v-if="newMessage.length === 0" class="suggestion-chips">
+        <button v-for="suggestion in suggestions" :key="suggestion" @click="selectSuggestion(suggestion)">
+          {{ suggestion }}
+        </button>
+      </div>
+      <div class="input-area">
+        <textarea
+          v-model="newMessage"
+          @keyup.enter.prevent="sendMessage()"
+          @paste="handlePaste"
+          placeholder="Type your message or paste text to import..."
+          :disabled="isThinking"
+        ></textarea>
+        <button @click="sendMessage()" :disabled="isThinking">
+          {{ isThinking ? 'Thinking...' : 'Send' }}
+        </button>
+      </div>
     </div>
     <div v-else class="ai-not-ready-banner">
       <p>The AI is not configured. Please set your Gemini API Key in the settings to enable the chat.</p>
@@ -68,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, defineExpose } from 'vue';
 import { ChatMessage, CalendarActionPlan, AnyPlan } from '../../../types';
 import ActionConfirmationCard from './ActionConfirmationCard.vue';
 import CalendarSelectionCard from './CalendarSelectionCard.vue';
@@ -89,6 +96,18 @@ const isThinking = ref(false);
 const showCancelConfirmDialog = ref(false);
 const showImportConfirmDialog = ref(false);
 const pastedText = ref('');
+
+const suggestions = ref([
+  'Create a new project called "Website Redesign"',
+  'Schedule a meeting for tomorrow at 10am to discuss marketing',
+  'What are my tasks for today?',
+  'Add a task to the "Website Redesign" project: "Design new homepage"',
+]);
+
+const selectSuggestion = (suggestion: string) => {
+  newMessage.value = suggestion;
+  sendMessage();
+};
 
 const fetchHistory = async () => {
   messages.value = await window.api.getChatHistory();
@@ -179,6 +198,8 @@ const sendMessage = async (messageContent?: string, isContinuation = false) => {
     isThinking.value = false;
   }
 };
+
+defineExpose({ sendMessage });
 
 const handleCancelOperation = () => {
   window.api.reloadWindow();
@@ -307,10 +328,34 @@ onUnmounted(() => {
   padding: 8px;
   border-radius: 8px;
 }
+.input-area-container {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #ccc;
+  padding: 10px;
+}
+.suggestion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 10px;
+  justify-content: center;
+}
+.suggestion-chips button {
+  background-color: #e0eaf1;
+  color: #333;
+  border: 1px solid #cdd7e1;
+  border-radius: 16px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.suggestion-chips button:hover {
+  background-color: #d0dbe5;
+}
 .input-area {
   display: flex;
-  padding: 10px;
-  border-top: 1px solid #ccc;
 }
 textarea {
   flex-grow: 1;

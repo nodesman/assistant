@@ -157,11 +157,8 @@
       @confirm="handleDeleteConfirm"
       @cancel="showDeleteConfirmation = false"
     />
-    <ConfirmationDialog
+    <NewProjectDialog
       v-if="showNewProjectDialog"
-      title="Create New Project"
-      message="Enter a title for your new project."
-      :show-input="true"
       @confirm="handleCreateProject"
       @cancel="showNewProjectDialog = false"
     />
@@ -172,8 +169,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { Project, Task } from '../../../types';
 import { marked } from 'marked';
-import GenericConfirmationDialog from './GenericConfirmationDialog.vue';
-import ConfirmationDialog from './ConfirmationDialog.vue';
+import NewProjectDialog from './NewProjectDialog.vue';
 import KanbanBoard from './KanbanBoard.vue';
 
 const projects = ref<Project[]>([]);

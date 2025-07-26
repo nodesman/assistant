@@ -1,26 +1,50 @@
 <template>
   <div id="app-container">
     <OnboardingWizard v-if="showOnboarding" @finish="completeOnboarding" />
-    <div class="main-layout">
+    <div class="main-layout" :class="{ 'palette-is-open': !isPaletteCollapsed }">
       <Sidebar :active-tab="activeTab" @tab-change="changeTab" />
       <main class="main-content">
-        <component :is="activeComponent" />
+        <!-- Use v-show for ChatInterface to keep it alive and referenceable -->
+        <ChatInterface ref="chatInterfaceRef" v-show="activeTab === 'Chat'" />
+        <CalendarView v-if="activeTab === 'Calendar'" />
+        <Projects v-if="activeTab === 'Projects'" />
+        <Settings v-if="activeTab === 'Settings'" />
       </main>
+      <ActionPalette @action-clicked="handleAction" @update:collapsed="updatePaletteState" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import Sidebar from './components/Sidebar.vue';
 import ChatInterface from './components/ChatInterface.vue';
 import CalendarView from './components/CalendarView.vue';
 import Projects from './components/Projects.vue';
 import Settings from './components/Settings.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
+import ActionPalette from './components/ActionPalette.vue';
 
 const activeTab = ref('Chat');
 const showOnboarding = ref(false);
+const chatInterfaceRef = ref(null);
+const isPaletteCollapsed = ref(true);
+
+const handleAction = (prompt: string) => {
+  if (activeTab.value !== 'Chat') {
+    activeTab.value = 'Chat';
+  }
+  // Ensure the chat interface is mounted and ready
+  setTimeout(() => {
+    if (chatInterfaceRef.value) {
+      (chatInterfaceRef.value as any).sendMessage(prompt);
+    }
+  }, 0);
+};
+
+const updatePaletteState = (collapsed: boolean) => {
+  isPaletteCollapsed.value = collapsed;
+};
 
 const checkOnboardingStatus = async () => {
   try {
@@ -28,7 +52,6 @@ const checkOnboardingStatus = async () => {
     showOnboarding.value = !hasCompleted;
   } catch (error) {
     console.error('Error checking onboarding status:', error);
-    // Assume onboarding is needed if there's an error
     showOnboarding.value = true;
   }
 };
@@ -50,20 +73,6 @@ onMounted(() => {
     });
   } else {
     console.error("Preload script not loaded, 'window.api' is not available.");
-  }
-});
-
-const activeComponent = computed(() => {
-  switch (activeTab.value) {
-    case 'Calendar':
-      return CalendarView;
-    case 'Projects':
-      return Projects;
-    case 'Settings':
-      return Settings;
-    case 'Chat':
-    default:
-      return ChatInterface;
   }
 });
 
@@ -99,5 +108,10 @@ body {
   flex-grow: 1;
   overflow: auto;
   padding: 1.5rem;
+  transition: margin-right 0.3s ease-in-out;
+}
+
+.main-layout.palette-is-open .main-content {
+  margin-right: 240px; /* Corresponds to the palette width minus its collapsed size */
 }
 </style>
