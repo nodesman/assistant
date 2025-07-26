@@ -77,10 +77,16 @@ export interface CalendarSelectionRequest {
 export interface EventProposal {
     eventId?: string; // Only present for 'delete' or 'update' actions
     summary: string;
-    startTime: string; // ISO 86-1 format
+    startTime: string; // ISO 8601 format
     endTime: string;   // ISO 8601 format
     description?: string;
 }
+
+// Specific proposal types for better type safety
+export type CreateEventProposal = Omit<EventProposal, 'eventId'>;
+export type UpdateEventProposal = Required<EventProposal>;
+export type DeleteEventProposal = Required<Pick<EventProposal, 'eventId' | 'summary' | 'startTime' | 'endTime'>>;
+
 
 // Defines a complete plan of action for the AI to propose to the user
 export interface CalendarActionPlan {
@@ -90,7 +96,7 @@ export interface CalendarActionPlan {
     // A summary of the plan, e.g., "I will create 3 events on your 'Work' calendar."
     summary: string; 
     // The list of events involved in the plan
-    events: EventProposal[];
+    events: (CreateEventProposal | UpdateEventProposal | DeleteEventProposal)[];
     // The original user prompt that generated this plan
     originalPrompt: string; 
 }

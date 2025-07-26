@@ -114,6 +114,17 @@ async function main() {
                     await calendarManager.deleteCalendarEvent(ev.eventId, plan.targetCalendarId);
                 }
                 return { success: true, message: `Successfully deleted ${plan.events.length} event(s).` };
+            } else if (plan.action === 'update') {
+                for (const ev of plan.events) {
+                    const eventBody = {
+                        summary: ev.summary,
+                        description: ev.description || '',
+                        start: { dateTime: ev.startTime },
+                        end: { dateTime: ev.endTime },
+                    };
+                    await calendarManager.updateCalendarEvent(ev.eventId, eventBody, plan.targetCalendarId);
+                }
+                return { success: true, message: `Successfully updated ${plan.events.length} event(s).` };
             }
             // 'update' action can be added here later
             return { success: false, error: 'Unsupported action type.' };
