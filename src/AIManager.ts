@@ -6,7 +6,7 @@ import {
     FunctionDeclaration,
     FunctionDeclarationsTool
 } from "@google/generative-ai";
-import { AiClient, ChatMessage, AIConfig, CalendarActionPlan } from "./types";
+import { AiClient, ChatMessage, AIConfig, CalendarActionPlan, CalendarSelectionRequest, AnyPlan } from "./types";
 import { CalendarManager } from "./CalendarManager";
 import { ProjectManager } from "./ProjectManager";
 
@@ -41,8 +41,7 @@ export class AIManager implements AiClient {
         return this.googleAI !== null;
     }
 
-    private getTools(calendarContext?: string): FunctionDeclarationsTool[] {
-        // Base tools for information gathering
+    private getTools(): FunctionDeclarationsTool[] {
         const functionDeclarations: FunctionDeclaration[] = [
             {
                 name: "get_calendar_events",
@@ -58,12 +57,35 @@ export class AIManager implements AiClient {
             },
             {
                 name: "list_calendars",
-                description: "Get a list of all available calendars to the user. This is useful to let the user choose which calendar to act on.",
+                description: "Get a list of all available calendars to the user.",
                 parameters: { type: "OBJECT", properties: {} },
             },
             {
+                name: "request_calendar_selection",
+                description: "If the user's request is ambiguous about which calendar to use, call this function to ask the user to choose from a list of relevant calendars.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        summary: { type: "STRING", description: "The question to ask the user. E.g., 'Which calendar should I use for the new event?'" },
+                        calendars: {
+                            type: "ARRAY",
+                            description: "An array of calendar objects for the user to choose from.",
+                            items: {
+                                type: "OBJECT",
+                                properties: {
+                                    id: { type: "STRING", description: "The calendar ID." },
+                                    summary: { type: "STRING", description: "The human-readable name of the calendar." },
+                                },
+                                required: ["id", "summary"],
+                            },
+                        },
+                    },
+                    required: ["summary", "calendars"],
+                },
+            },
+            {
                 name: "propose_calendar_action_plan",
-                description: "Once all information is gathered, use this tool to propose a plan to the user for creating, deleting, or updating calendar events. The user must approve this plan before any action is taken.",
+                description: "Once all information is gathered and there is no ambiguity, use this tool to propose a final plan to the user. This is the last step.",
                 parameters: {
                     type: "OBJECT",
                     properties: {
@@ -90,33 +112,46 @@ export class AIManager implements AiClient {
                 },
             },
         ];
-
-        // If a specific calendar context is provided, add a tool to get details for THAT calendar.
-        if (calendarContext) {
-            // This part is for the re-evaluation loop, which is not fully implemented here.
-            // This is a placeholder for how one might add context-specific tools.
-        }
-
         return [{ functionDeclarations }];
     }
 
-    async generateChatResponse(history: ChatMessage[], calendarContext?: string): Promise<ChatMessage> {
+    async generateChatResponse(history: ChatMessage[], onUpdate: (update: any) => void, calendarContext?: string): Promise<ChatMessage> {
         if (!this.isReady() || !this.googleAI) {
             return { role: 'model', content: "The AI is not available. Please check your API key in the settings." };
         }
 
+        const systemInstruction = `
+            You are a helpful assistant for managing a user's calendar. Today's date is ${new Date().toISOString()}.
+            Your workflow is as follows:
+            1.  **Gather Information:** Use the \`list_calendars\` and \`get_calendar_events\` tools to understand the user's current state.
+            2.  **Clarify Ambiguity:** If the user's request could apply to multiple calendars (e.g., "delete my meetings"), you MUST use the \`request_calendar_selection\` tool to ask the user for clarification. Do not guess.
+            3.  **Propose a Plan:** Once you have all the necessary information (including a specific calendar ID), you MUST end the conversation by calling the \`propose_calendar_action_plan\` tool. This presents the final, concrete plan to the user for approval.
+            Never ask the user for information you can acquire with your tools.
+        `;
+
         const model = this.googleAI.getGenerativeModel({
             model: this.config.model,
-            tools: this.getTools(calendarContext),
+            tools: this.getTools(),
+            systemInstruction: systemInstruction,
         });
 
-        const googleChatHistory: Content[] = history.map(msg => ({
-            role: msg.role === 'system' ? 'user' : msg.role,
+        const lastMessage = history.pop();
+        if (!lastMessage) {
+            return { role: 'model', content: "No message to respond to." };
+        }
+
+        // The 'history' for startChat should be everything *except* the last message.
+        const chatHistoryForInit: Content[] = history.map(msg => ({
+            role: msg.role,
             parts: [{ text: msg.content }],
         }));
 
-        const chat = model.startChat({ history: googleChatHistory.slice(0, -1) });
-        const lastMessage = history[history.length - 1];
+        // The Google API requires the history array to start with a 'user' role.
+        if (chatHistoryForInit.length > 0 && chatHistoryForInit[0].role !== 'user') {
+            chatHistoryForInit[0].role = 'user';
+        }
+
+        const chat = model.startChat({ history: chatHistoryForInit });
 
         try {
             let result = await chat.sendMessage(lastMessage.content);
@@ -124,38 +159,36 @@ export class AIManager implements AiClient {
             while (true) {
                 const call = result.response.functionCalls()?.[0];
                 if (!call) {
-                    // No function call, just return the text response
-                    return { role: 'model', content: result.response.text() };
+                    const responseText = result.response.text();
+                    onUpdate({ status: 'done', content: 'Finished generating response.' });
+                    return { role: 'model', content: String(responseText) };
                 }
 
-                // If the AI wants to propose a plan, we're done on the backend.
-                // We return the plan to the frontend for user confirmation.
-                if (call.name === 'propose_calendar_action_plan') {
-                    // Manually construct the plan to ensure it's a plain, serializable object
-                    const plan: CalendarActionPlan = {
-                        type: 'calendar_plan',
-                        action: call.args.action,
-                        targetCalendarId: call.args.targetCalendarId,
-                        summary: call.args.summary,
-                        events: call.args.events.map(e => ({ ...e })), // Ensure events array is also plain
-                        originalPrompt: lastMessage.content,
+                // --- Handle Plan-based Function Calls ---
+                if (call.name === 'propose_calendar_action_plan' || call.name === 'request_calendar_selection') {
+                    onUpdate({ status: 'plan_generated', content: 'Plan ready for review.' });
+                    const plan: AnyPlan = {
+                        type: call.name === 'propose_calendar_action_plan' ? 'calendar_plan' : 'calendar_selection_request',
+                        originalPrompt: String(lastMessage.content),
+                        ...JSON.parse(JSON.stringify(call.args)),
                     };
                     return {
                         role: 'model',
-                        content: call.args.summary, // The summary is the textual part of the response
+                        content: String(call.args.summary),
                         plan: plan,
                     };
                 }
 
-                console.log("Function call requested:", call.name, "with arguments:", call.args);
+                // --- Handle Information-Gathering Function Calls ---
+                onUpdate({ status: 'tool_call', name: call.name, args: call.args });
                 const functionResponseParts: Part[] = [];
-
-                // --- Execute Information-Gathering Function Call ---
                 try {
                     let apiResponse;
                     switch (call.name) {
                         case 'get_calendar_events':
-                            const events = await this.calendarManager.getCalendarEvents(call.args.startDate, call.args.endDate, []); // Fetch from all calendars
+                            const allCalendars = await this.calendarManager.getCalendarList();
+                            const allCalendarIds = allCalendars.map(c => c.id);
+                            const events = await this.calendarManager.getCalendarEvents(call.args.startDate, call.args.endDate, allCalendarIds);
                             apiResponse = { events: events.map(e => ({ id: e.id, summary: e.summary, start: e.start, end: e.end, calendarId: e.calendarId })) };
                             break;
                         case 'list_calendars':
@@ -175,7 +208,6 @@ export class AIManager implements AiClient {
                     });
                 }
 
-                // --- Send Response Back to Model to Continue the Loop ---
                 result = await chat.sendMessage(functionResponseParts);
             }
         } catch (e) {
@@ -184,14 +216,9 @@ export class AIManager implements AiClient {
         }
     }
     
-    // This method is now deprecated for chat, but kept for other potential uses.
-    async extractProjectsAndTasks(fileContent: string, userPrompt: string, log: (message: string) => void): Promise<void> {
-        // ... implementation remains the same
-    }
-
     async generateReflection(entry: string): Promise<string> {
         if (!this.isReady()) {
-            return "AI client is not configured. Please set your API key in the settings.";
+            return "AI client is not configured.";
         }
         return "Not implemented for brevity in this example";
     }
