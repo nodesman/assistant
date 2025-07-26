@@ -281,7 +281,7 @@ export class AIManager implements AiClient {
             model: 'gemini-1.5-flash',
             tools: [{ functionDeclarations: [projectTools[0].functionDeclarations.find(fd => fd.name === 'save_project_titles')] }],
         });
-        const titlesPrompt = `Based on the following document, please identify all the project titles. ${userPrompt}\n---\n${fileContent}\n---`;
+        const titlesPrompt = `You are an expert at parsing documents to extract project structures. A project is typically a heading or a title followed by a body of text and a list of tasks. Based on the following document, please identify all of the distinct project titles. ${userPrompt}\n---\n${fileContent}\n---`;
         let projectTitles = [];
         try {
             const result = await getTitlesModel.generateContent(titlesPrompt);
