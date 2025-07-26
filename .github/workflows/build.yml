@@ -6,6 +6,8 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: write
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -28,14 +30,16 @@ jobs:
     - name: Build application
       run: npm run build
 
-    - name: Package application
+    - name: Package and release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         if [ "$RUNNER_OS" == "Linux" ]; then
-          npm exec electron-builder -- --linux
+          npm exec electron-builder -- --linux --publish always
         elif [ "$RUNNER_OS" == "Windows" ]; then
-          npm exec electron-builder -- --win
+          npm exec electron-builder -- --win --publish always
         elif [ "$RUNNER_OS" == "macOS" ]; then
-          npm exec electron-builder -- --mac
+          npm exec electron-builder -- --mac --publish always
         fi
       shell: bash
 
@@ -43,4 +47,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.os }}-build
-        path: out/make
+        path: release
