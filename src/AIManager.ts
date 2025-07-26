@@ -1,29 +1,43 @@
 // src/AIManager.ts
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, Part, Content } from "@google/generative-ai";
-import { AiClient, JournalConfig, ChatMessage } from "./types";
+import { AiClient, JournalConfig, ChatMessage, AIConfig } from "./types";
 import { CalendarManager } from "./CalendarManager";
 import moment from "moment";
 import { ProjectManager } from "./ProjectManager";
 
 export class AIManager implements AiClient {
-    private config: JournalConfig['ai'];
-    private googleAI: GoogleGenerativeAI;
+    private config: AIConfig;
+    private googleAI: GoogleGenerativeAI | null = null;
     private calendarManager: CalendarManager;
     private projectManager: ProjectManager;
 
-    constructor(config: JournalConfig['ai'], calendarManager: CalendarManager, projectManager: ProjectManager) {
+    constructor(config: AIConfig, calendarManager: CalendarManager, projectManager: ProjectManager) {
         this.config = config;
         this.calendarManager = calendarManager;
         this.projectManager = projectManager;
-        const apiKey = process.env[this.config.api_key_env_var];
-
-        if (!apiKey) {
-            throw new Error(`API key environment variable '${this.config.api_key_env_var}' not set.`);
-        }
-        this.googleAI = new GoogleGenerativeAI(apiKey);
-        console.log(`AI Manager initialized for model: ${this.config.model}`);
+        this.initializeClient();
     }
 
+    private initializeClient(): void {
+        let apiKey: string | undefined = this.config.apiKey;
+
+        if (!apiKey && this.config.api_key_env_var) {
+            apiKey = process.env[this.config.api_key_env_var];
+        }
+
+        if (apiKey) {
+            this.googleAI = new GoogleGenerativeAI(apiKey);
+            console.log(`AI Manager initialized for model: ${this.config.model}`);
+        } else {
+            this.googleAI = null;
+            console.warn(`AI Manager not initialized: Gemini API key not found.`);
+        }
+    }
+
+    public isReady(): boolean {
+        return this.googleAI !== null;
+    }
+    
     private tools = [
         {
             functionDeclarations: [
@@ -124,6 +138,10 @@ export class AIManager implements AiClient {
     ];
 
     async extractProjectsAndTasks(fileContent: string, userPrompt: string, log: (message: string) => void): Promise<void> {
+        if (!this.isReady() || !this.googleAI) {
+            log("AI client is not initialized. Please configure the API key in settings.");
+            return;
+        }
         // This function remains unchanged as it uses a specific model with a subset of tools.
         const maxRetries = 3;
         log("Fetching existing projects from the database...");
@@ -197,10 +215,17 @@ export class AIManager implements AiClient {
     }
 
     async generateReflection(entry: string): Promise<string> {
+        if (!this.isReady()) {
+            return "AI client is not configured. Please set your API key in the settings.";
+        }
         return "Not implemented for brevity in this example";
     }
 
     async generateChatResponse(history: ChatMessage[], modelName?: string): Promise<string | null> {
+        if (!this.isReady() || !this.googleAI) {
+            return "The AI is not available. Please check your API key in the settings.";
+        }
+        
         const model = this.googleAI.getGenerativeModel({
             model: modelName || this.config.model,
             tools: this.tools,

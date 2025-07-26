@@ -88,6 +88,7 @@ async function main() {
     ipcMain.handle('update-calendar-event', (event, eventId, eventBody, calendarId) => calendarManager.updateCalendarEvent(eventId, eventBody, calendarId));
     ipcMain.handle('delete-calendar-event', (event, eventId, calendarId) => calendarManager.deleteCalendarEvent(eventId, calendarId));
     ipcMain.handle('generate-chat-response', (event, history) => aiManager.generateChatResponse(history));
+    ipcMain.handle('is-ai-ready', () => aiManager.isReady());
     ipcMain.handle('authorize-google-account', (event) => {
         const window = BrowserWindow.fromWebContents(event.sender);
         if (window) {
@@ -96,6 +97,28 @@ async function main() {
     });
     ipcMain.handle('get-authorized-user', () => authManager.getAuthorizedUser());
     ipcMain.handle('remove-google-account', () => authManager.removeGoogleAccount());
+
+    // Config IPC Handlers
+    ipcMain.handle('get-config', async () => {
+        const config = await Config.getInstance();
+        return config.get();
+    });
+
+    ipcMain.handle('update-config', async (event, newConfig) => {
+        try {
+            const config = await Config.getInstance();
+            await config.updateConfig(newConfig);
+            // Reload config to ensure all managers get the updated version
+            await Config.reloadInstance();
+            // You might need to re-initialize managers that depend on the config
+            // For now, we'll assume a restart is the simplest way to handle this.
+            // A more advanced implementation could re-initialize them live.
+            return { success: true };
+        } catch (error) {
+            console.error("Failed to update config:", error);
+            return { success: false, error: error.message };
+        }
+    });
 
     // Onboarding IPC Handlers
     ipcMain.handle('get-onboarding-status', () => userState.getOnboardingStatus());

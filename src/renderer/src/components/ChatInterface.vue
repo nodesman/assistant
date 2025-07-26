@@ -14,7 +14,7 @@
         </div>
       </div>
     </div>
-    <div class="input-area">
+    <div v-if="isAiReady" class="input-area">
       <textarea
         v-model="newMessage"
         @keyup.enter.prevent="sendMessage"
@@ -22,6 +22,11 @@
         placeholder="Type your message... or paste a block of text to import."
       ></textarea>
       <button @click="sendMessage">Send</button>
+    </div>
+    <div v-else class="ai-not-ready-banner">
+      <p>The AI is not configured. Please set your Gemini API Key in the settings to enable the chat.</p>
+      <!-- This is a placeholder for a link. In a real app, you'd use Vue Router's <router-link>. -->
+      <button @click="goToSettings" class="button-secondary">Go to Settings</button>
     </div>
   </div>
 </template>
@@ -32,6 +37,15 @@ import { ChatMessage } from '../../../types';
 import ConfirmationDialog from './ConfirmationDialog.vue';
 import { marked } from 'marked';
 
+// In a real app with Vue Router, you would inject the router instance.
+// const router = useRouter();
+const goToSettings = () => {
+  // This is a simple stand-in. A real implementation would navigate to the settings view.
+  // For example: router.push('/settings');
+  alert("Please navigate to the Settings view from the sidebar.");
+};
+
+
 interface DisplayMessage {
   role: 'user' | 'model' | 'system';
   content?: string;
@@ -41,6 +55,20 @@ interface DisplayMessage {
 
 const messages = ref<DisplayMessage[]>([]);
 const newMessage = ref('');
+const isAiReady = ref(false);
+
+const checkAiStatus = async () => {
+  try {
+    isAiReady.value = await window.api.isAiReady();
+    if (isAiReady.value) {
+       messages.value.push({ role: 'system', content: 'Hello! How can I help you today? Paste a block of text to import projects and tasks.', type: 'text' });
+    }
+  } catch (error) {
+    console.error("Error checking AI status:", error);
+    isAiReady.value = false;
+  }
+};
+
 
 const renderMarkdown = (content: string) => {
   if (content) {
@@ -50,6 +78,7 @@ const renderMarkdown = (content: string) => {
 };
 
 const handlePaste = async (event: ClipboardEvent) => {
+  if (!isAiReady.value) return;
   const pastedText = event.clipboardData?.getData('text');
   if (pastedText && pastedText.length > 100) { // Heuristic for "large" text
     event.preventDefault(); // Prevent the text from being pasted into the textarea
@@ -69,6 +98,7 @@ const handlePaste = async (event: ClipboardEvent) => {
 };
 
 const sendMessage = async () => {
+  if (!isAiReady.value) return;
   const userMessage = newMessage.value.trim();
   if (userMessage === '') return;
 
@@ -115,7 +145,7 @@ const getHistory = (): ChatMessage[] => {
 };
 
 onMounted(() => {
-  messages.value.push({ role: 'system', content: 'Hello! How can I help you today? Paste a block of text to import projects and tasks.', type: 'text' });
+  checkAiStatus();
 });
 </script>
 
@@ -180,5 +210,19 @@ button {
 }
 .markdown-content {
   white-space: pre-wrap;
+}
+.ai-not-ready-banner {
+  padding: 1rem;
+  text-align: center;
+  background-color: var(--background-secondary);
+  border-top: 1px solid var(--border-color);
+}
+.button-secondary {
+  background-color: #e0e0e0;
+  color: #333;
+  margin-top: 0.5rem;
+}
+.button-secondary:hover {
+  background-color: #dcdcdc;
 }
 </style>

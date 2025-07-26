@@ -18,9 +18,12 @@ contextBridge.exposeInMainWorld('api', {
   updateCalendarEvent: (eventId, eventBody, calendarId) => ipcRenderer.invoke('update-calendar-event', eventId, eventBody, calendarId),
   deleteCalendarEvent: (eventId, calendarId) => ipcRenderer.invoke('delete-calendar-event', eventId, calendarId),
   generateChatResponse: (history) => ipcRenderer.invoke('generate-chat-response', history),
+  isAiReady: () => ipcRenderer.invoke('is-ai-ready'),
   authorizeGoogleAccount: () => ipcRenderer.invoke('authorize-google-account'),
   getAuthorizedUser: () => ipcRenderer.invoke('get-authorized-user'),
   removeGoogleAccount: () => ipcRenderer.invoke('remove-google-account'),
+  getConfig: () => ipcRenderer.invoke('get-config'),
+  updateConfig: (config) => ipcRenderer.invoke('update-config', config),
   getOnboardingStatus: () => ipcRenderer.invoke('get-onboarding-status'),
   setOnboardingCompleted: () => ipcRenderer.invoke('set-onboarding-completed'),
   onReceiveMessage: (channel, func) => {

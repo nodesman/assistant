@@ -315,7 +315,6 @@ const vClickOutside = {
 }
 
 .calendar-header {
-  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -323,25 +322,22 @@ const vClickOutside = {
 }
 
 /* Layout header sections and center the view-switcher */
-.header-left {
-  flex: 1 1 0%;
-  justify-content: flex-start;
+.header-left, .header-right {
+  display: flex;
+  align-items: center;
   gap: 12px;
-  min-width: 0;
+}
+
+.header-left {
+  justify-content: flex-start;
 }
 
 .header-center {
-  flex: none;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  /* No absolute positioning needed */
 }
 
 .header-right {
-  flex: 1 1 0%;
   justify-content: flex-end;
-  position: relative;
-  gap: 12px;
 }
 
 .nav-button, .today-button, .settings-button, .refresh-button {

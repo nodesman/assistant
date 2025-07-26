@@ -34,15 +34,18 @@ export interface GoogleTokens {
     expiry_date: number; // Unix timestamp
 }
 
+export interface AIConfig {
+    provider?: 'google' | 'openai';
+    model: string;
+    api_key_env_var?: string; // Optional: for backward compatibility or dev environments
+    apiKey?: string;          // Optional: the actual key, stored in user's config
+    reflection_prompt: string;
+    temperature?: number;
+}
+
 export interface JournalConfig {
     journal_directory: string;
-    ai: {
-        provider?: 'google' | 'openai'; // Optional for now
-        model: string;
-        api_key_env_var: string;
-        reflection_prompt: string;
-        // Add other AI params like temperature if needed
-    };
+    ai: AIConfig;
     editor_command: string; // Command to launch the editor
     google_auth?: GoogleAuthConfig; // Optional Google Auth configuration
 }

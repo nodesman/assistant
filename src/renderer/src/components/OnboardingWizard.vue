@@ -4,7 +4,7 @@
       <div class="wizard-header">
         <h2>Welcome to Your Assistant</h2>
         <div class="step-indicator">
-          Step {{ currentStep }} of 3
+          Step {{ currentStep }} of 4
         </div>
       </div>
       <div class="wizard-content">
@@ -14,8 +14,24 @@
           <p>This quick setup wizard will help you connect your accounts and create your first project.</p>
         </div>
 
-        <!-- Step 2: Google Calendar -->
+        <!-- Step 2: Gemini API Key -->
         <div v-if="currentStep === 2" class="wizard-step">
+          <h3>Connect to Gemini AI</h3>
+          <p>
+            To enable AI features, you'll need a Google Gemini API key.
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-link">Click here to get your key</a>, then paste it below.
+          </p>
+          <div class="form-group">
+            <label for="gemini-api-key">Gemini API Key</label>
+            <input type="password" id="gemini-api-key" v-model="geminiApiKey" placeholder="Enter your API key">
+          </div>
+           <p class="small-text">
+            Your key is stored locally and is only used to communicate with the Gemini API. All API usage is billed to your own Google account.
+          </p>
+        </div>
+
+        <!-- Step 3: Google Calendar -->
+        <div v-if="currentStep === 3" class="wizard-step">
           <h3>Connect Google Calendar</h3>
           <p>Link your Google Account to seamlessly manage your calendar events directly within the app.</p>
           <div v-if="isAuthorized" class="auth-success">
@@ -26,8 +42,8 @@
           </button>
         </div>
 
-        <!-- Step 3: Create First Project -->
-        <div v-if="currentStep === 3" class="wizard-step">
+        <!-- Step 4: Create First Project -->
+        <div v-if="currentStep === 4" class="wizard-step">
           <h3>Create Your First Project</h3>
           <p>Projects help you organize your tasks. Let's create one now.</p>
           <div class="form-group">
@@ -38,8 +54,8 @@
       </div>
       <div class="wizard-footer">
         <button @click="prevStep" v-if="currentStep > 1" class="button-secondary">Back</button>
-        <button @click="nextStep" v-if="currentStep < 3" class="button-primary" :disabled="!canProceed">Next</button>
-        <button @click="finish" v-if="currentStep === 3" class="button-primary" :disabled="!projectTitle">Finish</button>
+        <button @click="nextStep" v-if="currentStep < 4" class="button-primary" :disabled="!canProceed">Next</button>
+        <button @click="finish" v-if="currentStep === 4" class="button-primary" :disabled="!projectTitle">Finish</button>
       </div>
     </div>
   </div>
@@ -51,19 +67,23 @@ import { ref, computed } from 'vue';
 const emit = defineEmits(['finish']);
 
 const currentStep = ref(1);
+const geminiApiKey = ref('');
 const isAuthorized = ref(false);
 const isAuthorizing = ref(false);
 const projectTitle = ref('');
 
 const canProceed = computed(() => {
   if (currentStep.value === 2) {
+    return geminiApiKey.value.trim() !== '';
+  }
+  if (currentStep.value === 3) {
     return isAuthorized.value;
   }
   return true;
 });
 
 const nextStep = () => {
-  if (currentStep.value < 3) {
+  if (currentStep.value < 4) {
     currentStep.value++;
   }
 };
@@ -88,12 +108,25 @@ const authorize = async () => {
 };
 
 const finish = async () => {
-  if (!projectTitle.value) return;
+  if (!projectTitle.value || !geminiApiKey.value) return;
   try {
+    // 1. Save the API Key
+    await window.api.updateConfig({
+      ai: {
+        apiKey: geminiApiKey.value
+      }
+    });
+
+    // 2. Create the project
     await window.api.createProject({ title: projectTitle.value });
+
+    // 3. Mark onboarding as complete
+    await window.api.setOnboardingCompleted();
+
     emit('finish');
   } catch (error) {
-    console.error('Error creating project:', error);
+    console.error('Error during finish process:', error);
+    // You might want to show an error message to the user here
   }
 };
 </script>
@@ -157,6 +190,21 @@ const finish = async () => {
   line-height: 1.6;
   margin-bottom: 1.5rem;
 }
+
+.small-text {
+    font-size: 0.8rem;
+    color: #777;
+    margin-top: 1rem;
+}
+
+.text-link {
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+.text-link:hover {
+  text-decoration: underline;
+}
+
 
 .auth-success {
   color: #27ae60;
