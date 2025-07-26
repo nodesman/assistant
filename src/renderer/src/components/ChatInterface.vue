@@ -1,5 +1,23 @@
 <template>
   <div class="chat-container">
+    <GenericConfirmationDialog
+      v-if="showCancelConfirmDialog"
+      title="Operation in Progress"
+      message="The AI is currently processing a request. Would you like to cancel the current operation and start a new one?"
+      confirm-text="Yes, Cancel"
+      cancel-text="No, Wait"
+      @confirm="handleCancelOperation"
+      @cancel="showCancelConfirmDialog = false"
+    />
+    <GenericConfirmationDialog
+      v-if="showImportConfirmDialog"
+      title="Import from Text"
+      message="It looks like you pasted a large block of text. Would you like to import projects and tasks from it?"
+      confirm-text="Yes, Import"
+      cancel-text="No, Just Paste"
+      @confirm="handleImportConfirm"
+      @cancel="handleImportCancel"
+    />
     <div class="messages">
       <div v-for="(message, index) in messages" :key="index" :class="['message', message.role]">
         <!-- Conditionally render the correct card based on the plan type -->
@@ -33,11 +51,12 @@
     <div v-if="isAiReady" class="input-area">
       <textarea
         v-model="newMessage"
-        @keyup.enter.prevent="() => sendMessage()"
-        placeholder="Type your message..."
+        @keyup.enter.prevent="sendMessage"
+        @paste="handlePaste"
+        placeholder="Type your message or paste text to import..."
         :disabled="isThinking"
       ></textarea>
-      <button @click="() => sendMessage()" :disabled="isThinking">
+      <button @click="sendMessage" :disabled="isThinking">
         {{ isThinking ? 'Thinking...' : 'Send' }}
       </button>
     </div>
@@ -68,6 +87,8 @@ const newMessage = ref('');
 const isAiReady = ref(false);
 const isThinking = ref(false);
 const showCancelConfirmDialog = ref(false);
+const showImportConfirmDialog = ref(false);
+const pastedText = ref('');
 
 const fetchHistory = async () => {
   messages.value = await window.api.getChatHistory();
@@ -89,6 +110,34 @@ const renderMarkdown = (content: string) => {
   return content ? marked(content) : '';
 };
 
+const handlePaste = (event: ClipboardEvent) => {
+  const text = event.clipboardData?.getData('text');
+  if (text && text.length > 150) { // Heuristic for large text block
+    event.preventDefault();
+    pastedText.value = text;
+    showImportConfirmDialog.value = true;
+  }
+};
+
+const handleImportConfirm = async () => {
+  showImportConfirmDialog.value = false;
+  const textToImport = pastedText.value;
+  pastedText.value = '';
+  
+  const systemMessage: ChatMessage = { role: 'system', content: `Starting import from pasted text...` };
+  messages.value = await window.api.addChatMessage(systemMessage);
+
+  await window.api.extractProjectsAndTasks(textToImport, "Extract projects and tasks from the following text.");
+  const doneMessage: ChatMessage = { role: 'system', content: `✅ Import process finished.` };
+  messages.value = await window.api.addChatMessage(doneMessage);
+};
+
+const handleImportCancel = () => {
+  showImportConfirmDialog.value = false;
+  newMessage.value += pastedText.value; // Paste the text as normal
+  pastedText.value = '';
+};
+
 const sendMessage = async (messageContent?: string, isContinuation = false) => {
   if (!isAiReady.value) return;
   
@@ -104,7 +153,6 @@ const sendMessage = async (messageContent?: string, isContinuation = false) => {
   
   if (!isContinuation) {
     await window.api.addChatMessage(userMessage);
-    messages.value = await window.api.getChatHistory();
   }
   
   newMessage.value = '';
@@ -116,7 +164,9 @@ const sendMessage = async (messageContent?: string, isContinuation = false) => {
 
   try {
     const historyForAI = await window.api.getChatHistory();
-    // The last message is the user's prompt, which is what we want to send
+    if (isContinuation) {
+        historyForAI.push(userMessage);
+    }
     const response: ChatMessage = await window.api.generateChatResponse(historyForAI);
     
     messages.value = await window.api.replaceLastChatMessage(response);
@@ -135,11 +185,11 @@ const handleCancelOperation = () => {
 };
 
 const handleCalendarSelection = async (selection: { originalPrompt: string, selectedCalendarId: string }) => {
-  const calendar = (messages.value.find(m => m.plan)?.plan as any)?.calendars.find(c => c.id === selection.selectedCalendarId);
+  const planMessage = messages.value.find(m => m.plan?.type === 'calendar_selection_request');
+  const calendar = (planMessage?.plan as any)?.calendars.find(c => c.id === selection.selectedCalendarId);
   const calendarName = calendar ? calendar.summary : selection.selectedCalendarId;
   const systemMessage: ChatMessage = { role: 'system', content: `Using calendar: ${calendarName}` };
   await window.api.replaceLastChatMessage(systemMessage);
-  messages.value = await window.api.getChatHistory();
   
   const continuedPrompt = `${selection.originalPrompt}. Please use the calendar with the ID '${selection.selectedCalendarId}'.`;
   sendMessage(continuedPrompt, true);
@@ -196,10 +246,16 @@ const handleAIUpdate = async (update: any) => {
   }
 };
 
+const handleImportLog = async (log: string) => {
+    const logMessage: ChatMessage = { role: 'system', content: log };
+    messages.value = await window.api.addChatMessage(logMessage);
+};
+
 onMounted(() => {
   fetchHistory();
   checkAiStatus();
   window.api.onAIUpdate(handleAIUpdate);
+  window.api.onReceiveMessage('import-log', handleImportLog);
 });
 
 onUnmounted(() => {
