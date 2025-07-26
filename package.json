@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "electron-vite dev -- --no-sandbox",
     "build": "electron-vite build",
+    "build:win": "electron-builder --win",
     "start:assistant": "ts-node --project tsconfig.cli.json src/assistant_cli.ts",
     "test": "vitest"
   },
@@ -63,10 +64,16 @@
     "vue-tsc": "^2.0.26"
   },
   "build": {
+    "directories": {
+      "output": "out"
+    },
     "mac": {
       "extendInfo": {
         "NSMicrophoneUsageDescription": "This app needs access to your microphone to transcribe voice commands for creating and editing tasks and events."
       }
+    },
+    "win": {
+      "target": "nsis"
     }
   },
   "engines": {
