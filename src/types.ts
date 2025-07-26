@@ -23,6 +23,7 @@ export interface GoogleAuthConfig {
     client_secret?: string;
     redirect_uris?: string[];
     token_path?: string; // Path to store tokens
+    defaultCalendarId?: string; // Optional: ID of the user's default calendar
 }
 
 // New interface for Google OAuth tokens
@@ -54,6 +55,30 @@ export interface JournalConfig {
 export interface ChatMessage {
     role: 'user' | 'model' | 'system'; // Standard roles for chat models
     content: string;
+    // The plan proposed by the AI, to be rendered as an interactive card
+    plan?: CalendarActionPlan; 
+}
+
+// Defines a proposed event to be created, deleted, or edited
+export interface EventProposal {
+    eventId?: string; // Only present for 'delete' or 'update' actions
+    summary: string;
+    startTime: string; // ISO 8601 format
+    endTime: string;   // ISO 8601 format
+    description?: string;
+}
+
+// Defines a complete plan of action for the AI to propose to the user
+export interface CalendarActionPlan {
+    type: 'calendar_plan'; // To distinguish this from other potential plans
+    action: 'create' | 'delete' | 'update';
+    targetCalendarId: string;
+    // A summary of the plan, e.g., "I will create 3 events on your 'Work' calendar."
+    summary: string; 
+    // The list of events involved in the plan
+    events: EventProposal[];
+    // The original user prompt that generated this plan
+    originalPrompt: string; 
 }
 
 // Represents the structure of the state.yaml file

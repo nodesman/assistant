@@ -87,7 +87,37 @@ async function main() {
     ipcMain.handle('create-calendar-event', (event, eventBody, calendarId) => calendarManager.createCalendarEvent(eventBody, calendarId));
     ipcMain.handle('update-calendar-event', (event, eventId, eventBody, calendarId) => calendarManager.updateCalendarEvent(eventId, eventBody, calendarId));
     ipcMain.handle('delete-calendar-event', (event, eventId, calendarId) => calendarManager.deleteCalendarEvent(eventId, calendarId));
-    ipcMain.handle('generate-chat-response', (event, history) => aiManager.generateChatResponse(history));
+    
+    ipcMain.handle('generate-chat-response', (event, history, calendarContext) => {
+        return aiManager.generateChatResponse(history, calendarContext);
+    });
+
+    ipcMain.handle('execute-calendar-plan', async (event, plan) => {
+        try {
+            if (plan.action === 'create') {
+                for (const ev of plan.events) {
+                    await calendarManager.createCalendarEvent({
+                        summary: ev.summary,
+                        description: ev.description || '',
+                        start: { dateTime: ev.startTime },
+                        end: { dateTime: ev.endTime },
+                    }, plan.targetCalendarId);
+                }
+                return { success: true, message: `Successfully created ${plan.events.length} event(s).` };
+            } else if (plan.action === 'delete') {
+                for (const ev of plan.events) {
+                    await calendarManager.deleteCalendarEvent(ev.eventId, plan.targetCalendarId);
+                }
+                return { success: true, message: `Successfully deleted ${plan.events.length} event(s).` };
+            }
+            // 'update' action can be added here later
+            return { success: false, error: 'Unsupported action type.' };
+        } catch (error) {
+            console.error("Error executing calendar plan:", error);
+            return { success: false, error: error.message };
+        }
+    });
+
     ipcMain.handle('is-ai-ready', () => aiManager.isReady());
     ipcMain.handle('authorize-google-account', (event) => {
         const window = BrowserWindow.fromWebContents(event.sender);
