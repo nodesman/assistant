@@ -97,6 +97,19 @@ export class AIManager implements AiClient {
                         required: ["calendarId", "events"],
                     },
                 },
+                {
+                    name: "delete_calendar_events_by_query",
+                    description: "Deletes calendar events within a specified date range that match a text query.",
+                    parameters: {
+                        type: "OBJECT",
+                        properties: {
+                            query: { type: "STRING", description: "The text to search for in event titles (e.g., 'Workout', 'Meeting')." },
+                            startDate: { type: "STRING", description: "The start date for the search range, in ISO 8601 format." },
+                            endDate: { type: "STRING", description: "The end date for the search range, in ISO 8601 format." },
+                        },
+                        required: ["query", "startDate", "endDate"],
+                    },
+                },
                 // --- Import Tools (for file processing) ---
                 {
                     name: "save_project_titles",
@@ -292,7 +305,13 @@ export class AIManager implements AiClient {
                             apiResponse = { results: createdEvents };
                             break;
                         
-                        // Add other calendar cases here if needed in chat
+                        case 'delete_calendar_events_by_query':
+                            apiResponse = await this.calendarManager.deleteEventsByQuery(
+                                call.args.query,
+                                call.args.startDate,
+                                call.args.endDate
+                            );
+                            break;
 
                         default:
                             throw new Error(`Unrecognized function call: ${call.name}`);

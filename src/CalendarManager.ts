@@ -141,4 +141,43 @@ export class CalendarManager {
             throw error;
         }
     }
+
+    async deleteEventsByQuery(query: string, timeMin: string, timeMax: string): Promise<{ deletedCount: number, details: string[] }> {
+        const calendarList = await this.getCalendarList();
+        const allCalendarIds = calendarList.map(cal => cal.id);
+        
+        console.log(`Searching for events matching "${query}" between ${timeMin} and ${timeMax}`);
+
+        const allEvents = await this.getCalendarEvents(timeMin, timeMax, allCalendarIds);
+        
+        const lowerCaseQuery = query.toLowerCase();
+        const matchingEvents = allEvents.filter(event => 
+            event.summary && event.summary.toLowerCase().includes(lowerCaseQuery)
+        );
+
+        if (matchingEvents.length === 0) {
+            console.log(`No events found matching "${query}".`);
+            return { deletedCount: 0, details: [] };
+        }
+
+        console.log(`Found ${matchingEvents.length} matching events. Proceeding with deletion...`);
+        
+        const deletedDetails: string[] = [];
+        for (const event of matchingEvents) {
+            try {
+                await this.deleteCalendarEvent(event.id, event.calendarId);
+                const eventDetail = `'${event.summary}' on ${new Date(event.start.dateTime || event.start.date).toLocaleDateString()}`;
+                deletedDetails.push(eventDetail);
+                console.log(`Successfully deleted ${eventDetail}`);
+            } catch (error) {
+                console.error(`Failed to delete event with ID "${event.id}":`, error);
+                // Continue to the next event even if one fails
+            }
+        }
+
+        return {
+            deletedCount: deletedDetails.length,
+            details: deletedDetails,
+        };
+    }
 }
