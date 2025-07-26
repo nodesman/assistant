@@ -55,15 +55,29 @@ export interface JournalConfig {
 export interface ChatMessage {
     role: 'user' | 'model' | 'system'; // Standard roles for chat models
     content: string;
-    // The plan proposed by the AI, to be rendered as an interactive card
-    plan?: CalendarActionPlan; 
+    // A plan or request from the AI, to be rendered as an interactive card
+    plan?: AnyPlan; 
+}
+
+// A union type for any kind of plan the AI can propose
+export type AnyPlan = CalendarActionPlan | CalendarSelectionRequest;
+
+// Defines a request for the user to select a calendar
+export interface CalendarSelectionRequest {
+    type: 'calendar_selection_request';
+    // The question for the user, e.g., "Which calendar should I use?"
+    summary: string;
+    // The list of possible calendars for the user to choose from
+    calendars: { id: string; summary: string }[];
+    // The original user prompt that triggered this request
+    originalPrompt: string;
 }
 
 // Defines a proposed event to be created, deleted, or edited
 export interface EventProposal {
     eventId?: string; // Only present for 'delete' or 'update' actions
     summary: string;
-    startTime: string; // ISO 8601 format
+    startTime: string; // ISO 86-1 format
     endTime: string;   // ISO 8601 format
     description?: string;
 }

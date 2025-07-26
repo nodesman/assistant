@@ -123,9 +123,10 @@ export class AIManager implements AiClient {
         const systemInstruction = `
             You are a helpful assistant for managing a user's calendar. Today's date is ${new Date().toISOString()}.
             Your workflow is as follows:
-            1.  **Gather Information:** Use the \`list_calendars\` and \`get_calendar_events\` tools to understand the user's current state.
-            2.  **Clarify Ambiguity:** If the user's request could apply to multiple calendars (e.g., "delete my meetings"), you MUST use the \`request_calendar_selection\` tool to ask the user for clarification. Do not guess.
-            3.  **Propose a Plan:** Once you have all the necessary information (including a specific calendar ID), you MUST end the conversation by calling the \`propose_calendar_action_plan\` tool. This presents the final, concrete plan to the user for approval.
+            1.  **Infer Titles:** When creating events, you MUST infer a descriptive, concise title from the user's prompt. For example, if the user says 'schedule a run', the event title should be 'Run', not a generic 'Event'.
+            2.  **Gather Information:** Use the \`list_calendars\` and \`get_calendar_events\` tools to understand the user's current state.
+            3.  **Clarify Ambiguity:** If the user's request could apply to multiple calendars (e.g., "delete my meetings"), you MUST use the \`request_calendar_selection\` tool to ask the user for clarification. Do not guess.
+            4.  **Propose a Plan:** Once you have all the necessary information (including a specific calendar ID), you MUST end the conversation by calling the \`propose_calendar_action_plan\` tool. This presents the final, concrete plan to the user for approval.
             Never ask the user for information you can acquire with your tools.
         `;
 
@@ -142,7 +143,8 @@ export class AIManager implements AiClient {
 
         // The 'history' for startChat should be everything *except* the last message.
         const chatHistoryForInit: Content[] = history.map(msg => ({
-            role: msg.role,
+            // Convert 'system' role to 'user' for the API
+            role: msg.role === 'system' ? 'user' : msg.role,
             parts: [{ text: msg.content }],
         }));
 

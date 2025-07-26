@@ -11,6 +11,7 @@ import { AuthManager } from '../AuthManager';
 import { DatabaseManager } from '../DatabaseManager';
 import { TextParser } from '../TextParser';
 import { UserState } from '../UserState';
+import { ChatManager } from '../ChatManager';
 
 // Define the development server URL
 const VITE_DEV_SERVER_URL = process.env['ELECTRON_VITE_URL'];
@@ -22,6 +23,7 @@ async function main() {
     // Instantiate managers
     const config = await Config.getInstance();
     const userState = await UserState.getInstance();
+    const chatManager = ChatManager.getInstance();
     const dbManager = new DatabaseManager(config);
     await dbManager.init();
     await dbManager.migrateFromYaml();
@@ -89,7 +91,10 @@ async function main() {
     ipcMain.handle('delete-calendar-event', (event, eventId, calendarId) => calendarManager.deleteCalendarEvent(eventId, calendarId));
     
     ipcMain.handle('generate-chat-response', (event, history, calendarContext) => {
-        return aiManager.generateChatResponse(history, calendarContext);
+        const onUpdate = (update: any) => {
+            event.sender.send('ai-thinking-update', update);
+        };
+        return aiManager.generateChatResponse(history, onUpdate, calendarContext);
     });
 
     ipcMain.handle('execute-calendar-plan', async (event, plan) => {
@@ -127,6 +132,24 @@ async function main() {
     });
     ipcMain.handle('get-authorized-user', () => authManager.getAuthorizedUser());
     ipcMain.handle('remove-google-account', () => authManager.removeGoogleAccount());
+    ipcMain.handle('reload-window', (event) => {
+        BrowserWindow.fromWebContents(event.sender)?.reload();
+    });
+
+    // Chat History IPC Handlers
+    ipcMain.handle('get-chat-history', () => chatManager.getHistory());
+    ipcMain.handle('add-chat-message', (event, message) => {
+        chatManager.addMessage(message);
+        return chatManager.getHistory();
+    });
+    ipcMain.handle('replace-last-chat-message', (event, message) => {
+        chatManager.replaceLastMessage(message);
+        return chatManager.getHistory();
+    });
+    ipcMain.handle('clear-chat-history', () => {
+        chatManager.clearHistory();
+        return chatManager.getHistory();
+    });
 
     // Config IPC Handlers
     ipcMain.handle('get-config', async () => {
