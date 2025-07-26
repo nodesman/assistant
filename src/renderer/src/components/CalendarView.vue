@@ -8,10 +8,8 @@
     <div v-else class="calendar-container">
       <div class="calendar-header">
         <div class="header-left">
-          <button @click="toggleMiniCalendar" class="icon-button calendar-toggle-btn" title="Toggle Calendar">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"/>
-            </svg>
+          <button @click="toggleMiniCalendar" class="icon-button" title="Toggle Calendar & Calendars">
+            <i class="fas fa-calendar-alt"></i>
           </button>
           <button @click="goToToday" class="nav-button today-button">Today</button>
           <div class="nav-button-group">
@@ -30,20 +28,6 @@
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
             </svg>
           </button>
-          <div class="popover-wrapper">
-            <button @click="toggleSettingsPopover" class="nav-button settings-button" title="Calendar settings">
-              <i class="fas fa-calendar-alt"></i>
-            </button>
-            <div v-if="isSettingsPopoverVisible" class="popover" v-click-outside="closeSettingsPopover">
-              <MiniCalendar :selected-date="currentDate" @date-selected="handleDateSelected" />
-              <hr class="popover-divider" />
-              <CalendarList
-                :calendars="calendars"
-                :visible-calendars="visibleCalendarIds"
-                @visibility-changed="handleVisibilityChange"
-              />
-            </div>
-          </div>
         </div>
       </div>
       <div class="calendar-content-area">
@@ -81,7 +65,6 @@ const calendars = ref([]);
 const visibleCalendarIds = ref<string[]>([]);
 const currentDate = ref(moment());
 const activeViewName = ref('Month');
-const isSettingsPopoverVisible = ref(false);
 const isMiniCalendarCollapsed = ref(true);
 const isFetchingEvents = ref(false);
 
@@ -226,7 +209,8 @@ const handleVisibilityChange = (newVisibleIds: string[]) => {
 
 const handleDateSelected = (date) => {
   currentDate.value = date;
-  isSettingsPopoverVisible.value = false;
+  // Also close the sidebar when a date is picked from the mini calendar
+  isMiniCalendarCollapsed.value = true;
 };
 
 const changeDate = (amount) => {
@@ -238,27 +222,6 @@ const goToToday = () => {
   currentDate.value = moment();
 };
 
-const toggleSettingsPopover = () => {
-  isSettingsPopoverVisible.value = !isSettingsPopoverVisible.value;
-};
-
-const closeSettingsPopover = () => {
-  isSettingsPopoverVisible.value = false;
-};
-
-const vClickOutside = {
-  mounted(el, binding) {
-    el.__ClickOutsideHandler__ = (event) => {
-      if (!(el === event.target || el.contains(event.target))) {
-        binding.value(event);
-      }
-    };
-    document.body.addEventListener('click', el.__ClickOutsideHandler__);
-  },
-  unmounted(el) {
-    document.body.removeEventListener('click', el.__ClickOutsideHandler__);
-  },
-};
 </script>
 
 <style scoped>
@@ -340,7 +303,7 @@ const vClickOutside = {
   justify-content: flex-end;
 }
 
-.nav-button, .today-button, .settings-button, .refresh-button {
+.nav-button, .today-button, .icon-button {
   background: none;
   border: 1px solid #e0e0e0;
   cursor: pointer;
@@ -352,7 +315,7 @@ const vClickOutside = {
   align-items: center;
 }
 
-.nav-button:hover, .today-button:hover, .settings-button:hover, .refresh-button:hover {
+.nav-button:hover, .today-button:hover, .icon-button:hover {
   background-color: #f0f0f0;
   border-color: #dcdcdc;
 }
@@ -379,7 +342,7 @@ const vClickOutside = {
   margin: 0 4px;
 }
 
-.settings-button, .refresh-button {
+.icon-button {
   width: 36px;
   height: 36px;
   padding: 0;
@@ -396,10 +359,6 @@ const vClickOutside = {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.popover-wrapper {
-  position: relative;
 }
 
 .calendar-content-area {
@@ -425,28 +384,6 @@ const vClickOutside = {
 hr {
   border: none;
   border-top: 1px solid #eee;
-  margin: 10px 0;
-}
-.calendar-toggle-btn {
-  border: 1px solid #e0e0e0;
-}
-
-.popover {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-  z-index: 1000;
-  margin-top: 8px;
-  width: 300px;
-  padding: 10px 0;
-}
-
-.popover-divider {
-  border: none;
-  border-top: 1px solid #e0e0e0;
   margin: 10px 0;
 }
 
