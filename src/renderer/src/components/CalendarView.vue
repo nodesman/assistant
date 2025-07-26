@@ -364,7 +364,8 @@ const goToToday = () => {
 .calendar-content-area {
   position: relative;
   flex-grow: 1;
-  overflow: hidden;
+  /* allow scrolling for views taller than the viewport (e.g., full-day timeline) */
+  overflow: auto;
 }
 .calendar-sidebar-container {
   position: absolute;

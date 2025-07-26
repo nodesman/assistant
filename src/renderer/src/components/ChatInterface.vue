@@ -51,12 +51,12 @@
     <div v-if="isAiReady" class="input-area">
       <textarea
         v-model="newMessage"
-        @keyup.enter.prevent="sendMessage"
+        @keyup.enter.prevent="sendMessage()"
         @paste="handlePaste"
         placeholder="Type your message or paste text to import..."
         :disabled="isThinking"
       ></textarea>
-      <button @click="sendMessage" :disabled="isThinking">
+      <button @click="sendMessage()" :disabled="isThinking">
         {{ isThinking ? 'Thinking...' : 'Send' }}
       </button>
     </div>

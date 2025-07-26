@@ -188,10 +188,25 @@ export class AIManager implements AiClient {
                     let apiResponse;
                     switch (call.name) {
                         case 'get_calendar_events':
+                            // Fetch calendar events, but on error return empty list rather than abort
                             const allCalendars = await this.calendarManager.getCalendarList();
                             const allCalendarIds = allCalendars.map(c => c.id);
-                            const events = await this.calendarManager.getCalendarEvents(call.args.startDate, call.args.endDate, allCalendarIds);
-                            apiResponse = { events: events.map(e => ({ id: e.id, summary: e.summary, start: e.start, end: e.end, calendarId: e.calendarId })) };
+                            let fetchedEvents;
+                            try {
+                                fetchedEvents = await this.calendarManager.getCalendarEvents(call.args.startDate, call.args.endDate, allCalendarIds);
+                            } catch (err) {
+                                console.error('Error fetching calendar events:', err);
+                                fetchedEvents = [];
+                            }
+                            apiResponse = {
+                                events: fetchedEvents.map(e => ({
+                                    id: e.id,
+                                    summary: e.summary,
+                                    start: e.start,
+                                    end: e.end,
+                                    calendarId: e.calendarId,
+                                })),
+                            };
                             break;
                         case 'list_calendars':
                             const calendars = await this.calendarManager.getCalendarList();
