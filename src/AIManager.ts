@@ -131,10 +131,14 @@ export class AIManager implements AiClient {
                 // If the AI wants to propose a plan, we're done on the backend.
                 // We return the plan to the frontend for user confirmation.
                 if (call.name === 'propose_calendar_action_plan') {
+                    // Manually construct the plan to ensure it's a plain, serializable object
                     const plan: CalendarActionPlan = {
                         type: 'calendar_plan',
+                        action: call.args.action,
+                        targetCalendarId: call.args.targetCalendarId,
+                        summary: call.args.summary,
+                        events: call.args.events.map(e => ({ ...e })), // Ensure events array is also plain
                         originalPrompt: lastMessage.content,
-                        ...call.args,
                     };
                     return {
                         role: 'model',
