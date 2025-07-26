@@ -1,4 +1,4 @@
-# Personal Journal CLI
+# Assistant
 
 A CLI tool for periodic journaling with AI reflection, designed as part of a personal task management system.
 
