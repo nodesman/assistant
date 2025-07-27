@@ -48,7 +48,7 @@
         </div>
       </div>
     </div>
-    <div v-if="isAiReady" class="input-area-container">
+    <div v-if="appState.isAiReady" class="input-area-container">
       <div v-if="newMessage.length === 0" class="suggestion-chips">
         <button v-for="suggestion in suggestions" :key="suggestion" @click="selectSuggestion(suggestion)">
           {{ suggestion }}
@@ -75,8 +75,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, defineExpose } from 'vue';
-import { ChatMessage, CalendarActionPlan, AnyPlan } from '../../../types';
+import { ref, onMounted, defineExpose } from 'vue';
+import { ChatMessage, CalendarActionPlan } from '../../../types';
+import { appState, updateAiState } from '../state/appState';
 import ActionConfirmationCard from './ActionConfirmationCard.vue';
 import CalendarSelectionCard from './CalendarSelectionCard.vue';
 import GenericConfirmationDialog from './GenericConfirmationDialog.vue';
@@ -91,7 +92,6 @@ const goToSettings = () => alert("Please navigate to the Settings view from the 
 
 const messages = ref<DisplayMessage[]>([]);
 const newMessage = ref('');
-const isAiReady = ref(false);
 const isThinking = ref(false);
 const showCancelConfirmDialog = ref(false);
 const showImportConfirmDialog = ref(false);
@@ -113,15 +113,15 @@ const fetchHistory = async () => {
   messages.value = await window.api.getChatHistory();
 };
 
+// Poll the backend for AI readiness and inject greeting if newly ready
 const checkAiStatus = async () => {
   try {
-    isAiReady.value = await window.api.isAiReady();
-    if (isAiReady.value && messages.value.length === 0) {
+    await updateAiState();
+    if (appState.isAiReady && messages.value.length === 0) {
        messages.value = await window.api.addChatMessage({ role: 'system', content: 'Hello! How can I help you today?' });
     }
   } catch (error) {
     console.error("Error checking AI status:", error);
-    isAiReady.value = false;
   }
 };
 
@@ -158,7 +158,7 @@ const handleImportCancel = () => {
 };
 
 const sendMessage = async (messageContent?: string, isContinuation = false) => {
-  if (!isAiReady.value) return;
+  if (!appState.isAiReady) return;
   
   if (isThinking.value) {
     showCancelConfirmDialog.value = true;
@@ -277,11 +277,12 @@ onMounted(() => {
   checkAiStatus();
   window.api.onAIUpdate(handleAIUpdate);
   window.api.onReceiveMessage('import-log', handleImportLog);
+  // Refresh AI readiness when Gemini API key/config changes
+  window.api.onReceiveMessage('ai-config-updated', () => {
+    checkAiStatus();
+  });
 });
 
-onUnmounted(() => {
-  // Cleanup listener if the component is ever unmounted
-});
 </script>
 
 <style scoped>

@@ -178,6 +178,9 @@ async function main() {
         try {
             await config.updateConfig(newConfig);
             await Config.reloadInstance();
+            // Reinitialize AI manager with updated AI config and notify renderer
+            aiManager.reinitialize(newConfig.ai);
+            mainWindow?.webContents.send('ai-config-updated');
             return { success: true };
         } catch (error) {
             console.error("Failed to update config:", error);
