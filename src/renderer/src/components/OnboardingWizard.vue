@@ -135,7 +135,8 @@ const finish = async () => {
     // 1. Save the API Key
     await window.api.updateConfig({
       ai: {
-        apiKey: geminiApiKey.value
+        apiKey: geminiApiKey.value,
+        model: 'gemini-2.5-pro'
       }
     });
 
