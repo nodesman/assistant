@@ -4,7 +4,7 @@
     <div v-if="!selectedProject" class="projects-list-view">
       <header class="view-header">
         <h1>Projects</h1>
-        <div>
+        <div class="header-actions">
           <button @click="fetchProjects" class="icon-button" title="Refresh Projects">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L22 10M2 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
           </button>
@@ -42,8 +42,9 @@
           <button @click="currentTaskView = 'List'" :class="{ active: currentTaskView === 'List' }">List</button>
           <button @click="currentTaskView = 'Kanban'" :class="{ active: currentTaskView === 'Kanban' }">Kanban</button>
         </div>
-        <button @click="addNewTask()" class="icon-button add-task-button" title="Add New Task">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        <button @click="addNewTask()" class="button-primary add-task-button" title="Add New Task">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          <span>New Task</span>
         </button>
       </header>
       <div class="master-detail-content" :class="{ 'details-visible': selectedTask }">
@@ -69,15 +70,11 @@
         <div class="task-details-container" v-if="selectedTask">
            <header class="view-header">
               <h3>{{ selectedTask.id.startsWith('temp-') ? 'New Task' : 'Task Details' }}</h3>
-              <div>
-                <button @click="saveSelectedTask" class="icon-button" title="Save Changes">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
-                </button>
+              <div class="task-actions">
+                <button @click="deselectTask" class="button-secondary">Cancel</button>
+                <button @click="saveSelectedTask" class="button-primary">Save</button>
                 <button v-if="!selectedTask.id.startsWith('temp-')" @click="requestDeleteTask(selectedTask.id)" class="icon-button-danger" title="Delete Task">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-                 <button @click="deselectTask" class="icon-button" title="Close">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
               </div>
             </header>
@@ -484,6 +481,7 @@ onMounted(fetchProjects);
 
 .add-task-button {
   margin-left: auto;
+  margin-right: 1rem;
 }
 
 .master-detail-content {
@@ -717,6 +715,36 @@ textarea {
 }
 .button-primary:hover {
   opacity: 0.9;
+}
+
+.button-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.button-secondary:hover {
+  background-color: var(--background-primary);
+}
+
+.task-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: 1rem;
 }
 </style>
 

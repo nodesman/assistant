@@ -3,7 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // --- Expose a secure API to the renderer process ---
 contextBridge.exposeInMainWorld('api', {
   // Project Management
-  getAllProjects: () => ipcRenderer.invoke('get-all-projects'),
+  getProjects: () => ipcRenderer.invoke('get-all-projects'),
   createProject: (project) => ipcRenderer.invoke('create-project', project),
   updateProject: (project) => ipcRenderer.invoke('update-project', project),
   deleteProject: (projectId) => ipcRenderer.invoke('delete-project', projectId),

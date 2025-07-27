@@ -51,7 +51,7 @@ const getEvents = async (date) => {
 
 onMounted(async () => {
   // @ts-ignore
-  projects.value = await window.api.getAllProjects();
+  projects.value = await window.api.getProjects();
   updateActionParams();
 });
 
