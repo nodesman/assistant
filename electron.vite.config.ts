@@ -35,14 +35,16 @@ export default defineConfig({
     }
   },
   renderer: {
-    plugins: [vue()],
-    optimizeDeps: {
-      include: [
-        '@milkdown/core',
-        '@milkdown/vue',
-        '@milkdown/preset-commonmark',
-        '@milkdown/theme-nord',
-      ],
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, 'src/renderer/src')
+      }
     },
+    plugins: [vue()],
+    build: {
+      rollupOptions: {
+        external: ['@milkdown/prose/state', '@milkdown/prose/view', '@milkdown/prose/model']
+      }
+    }
   }
 })
