@@ -2,7 +2,7 @@
 
 # Determine the OS and set the application data directory path
 OS="$(uname -s)"
-APP_DIR_NAME="personal-journal-cli"
+APP_DIR_NAME="assistant"
 APP_DIR=""
 
 case "$OS" in

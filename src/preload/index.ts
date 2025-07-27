@@ -18,8 +18,8 @@ contextBridge.exposeInMainWorld('api', {
   createJournalEntry: (entry) => ipcRenderer.invoke('create-journal-entry', entry),
   
   // Google Calendar
-  getCalendarList: () => ipcRenderer.invoke('get-cached-calendar-list'),
-  getCalendarEvents: () => ipcRenderer.invoke('get-cached-calendar-events'),
+  getCalendarList: () => ipcRenderer.invoke('get-calendar-list'),
+  getCalendarEvents: (timeMin, timeMax, calendarIds) => ipcRenderer.invoke('get-calendar-events', timeMin, timeMax, calendarIds),
   forceCalendarRefresh: () => ipcRenderer.invoke('force-calendar-refresh'),
   createCalendarEvent: (eventBody, calendarId) => ipcRenderer.invoke('create-calendar-event', eventBody, calendarId),
   updateCalendarEvent: (eventId, eventBody, calendarId) => ipcRenderer.invoke('update-calendar-event', eventId, eventBody, calendarId),

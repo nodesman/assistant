@@ -65,8 +65,8 @@ async function main() {
     ipcMain.handle('get-journal-entries', () => journalManager.getAllEntries());
     
     // Calendar IPC Handlers
-    ipcMain.handle('get-cached-calendar-list', () => getCalendarManager().getCachedCalendarList());
-    ipcMain.handle('get-cached-calendar-events', () => getCalendarManager().getCachedEvents());
+    ipcMain.handle('get-calendar-list', () => getCalendarManager().getCalendarList());
+    ipcMain.handle('get-calendar-events', (event, timeMin, timeMax, calendarIds) => getCalendarManager().getCalendarEvents(timeMin, timeMax, calendarIds));
     ipcMain.handle('force-calendar-refresh', () => getCalendarManager().forceRefresh());
     ipcMain.handle('create-calendar-event', (event, eventBody, calendarId) => getCalendarManager().createCalendarEvent(eventBody, calendarId));
     ipcMain.handle('update-calendar-event', (event, eventId, eventBody, calendarId) => getCalendarManager().updateCalendarEvent(eventId, eventBody, calendarId));
