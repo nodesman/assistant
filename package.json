@@ -26,10 +26,6 @@
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.7.2",
     "@google/generative-ai": "^0.15.0",
-    "@milkdown/core": "^6.5.3",
-    "@milkdown/preset-commonmark": "^6.5.3",
-    "@milkdown/theme-nord": "^6.5.3",
-    "@milkdown/vue": "^6.5.3",
     "better-sqlite3": "^12.2.0",
     "commander": "^12.1.0",
     "dotenv": "^17.2.1",

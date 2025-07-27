@@ -40,11 +40,6 @@ export default defineConfig({
         '@': resolve(__dirname, 'src/renderer/src')
       }
     },
-    plugins: [vue()],
-    build: {
-      rollupOptions: {
-        external: ['@milkdown/prose/state', '@milkdown/prose/view', '@milkdown/prose/model']
-      }
-    }
+    plugins: [vue()]
   }
 })
