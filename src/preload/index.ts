@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('api', {
   onAIUpdate: (callback) => ipcRenderer.on('ai-thinking-update', (_event, value) => callback(value)),
   
   // Google Authentication
+  onGoogleAuthSuccess: (callback) => ipcRenderer.on('google-auth-success', callback),
   areGoogleCredentialsConfigured: () => ipcRenderer.invoke('are-google-credentials-configured'),
   isGoogleAuthConfigured: () => ipcRenderer.invoke('is-google-auth-configured'),
   authorizeGoogleAccount: () => ipcRenderer.invoke('authorize-google-account'),

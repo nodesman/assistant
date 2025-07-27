@@ -1,7 +1,8 @@
 import { resolve } from 'path'
-import { defineConfig, externalizeDeps } from 'electron-vite'
+import { defineConfig } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
 import dotenv from 'dotenv'
+import { externalizeDeps } from 'vite-plugin-externalize-deps'
 
 // Load .env file
 dotenv.config()
@@ -16,6 +17,7 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
+        external: ['sqlite3'],
         input: {
           index: resolve(__dirname, 'src/main/index.ts')
         },

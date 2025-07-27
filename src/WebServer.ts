@@ -16,7 +16,7 @@ export class WebServer {
      */
     public startForAuth(port: number, window: BrowserWindow, callback: (code: string) => void): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.app.get('/oauth2callback', (req, res) => {
+            this.app.get('/auth/google/callback', (req, res) => {
                 const code = req.query.code as string;
                 if (code) {
                     res.send('<h1>Authorization successful!</h1><p>You can close this window.</p>');

@@ -80,6 +80,17 @@ const googleCredentialsConfigured = ref(false);
 onMounted(async () => {
   try {
     googleCredentialsConfigured.value = await window.api.areGoogleCredentialsConfigured();
+    console.log('[OnboardingWizard] Setting up onGoogleAuthSuccess listener.');
+    window.api.onGoogleAuthSuccess(() => {
+        console.log('[OnboardingWizard] google-auth-success event received!');
+        isAuthorized.value = true;
+        if (currentStep.value === 3) {
+            console.log('[OnboardingWizard] Current step is 3, calling nextStep().');
+            nextStep();
+        } else {
+            console.log(`[OnboardingWizard] Current step is ${currentStep.value}, not calling nextStep().`);
+        }
+    });
   } catch (error) {
     console.error('Error checking Google credentials configuration:', error);
   }
@@ -111,8 +122,6 @@ const authorize = async () => {
   isAuthorizing.value = true;
   try {
     await window.api.authorizeGoogleAccount();
-    const user = await window.api.getAuthorizedUser();
-    isAuthorized.value = !!user;
   } catch (error) {
     console.error('Google Authorization failed:', error);
   } finally {

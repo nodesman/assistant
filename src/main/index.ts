@@ -143,7 +143,7 @@ async function main() {
         if (window) {
             const result = await getAuthManager().authorize(window);
             if (result) {
-                getCalendarManager().startPolling();
+                // getCalendarManager().startPolling(); // This method doesn't exist
             }
             return result;
         }
@@ -226,13 +226,13 @@ async function main() {
         
         getAuthManager().getAuthorizedUser().then(user => {
             if (user) {
-                getCalendarManager().startPolling();
+                // getCalendarManager().startPolling(); // This method doesn't exist
             }
         });
 
         mainWindow.on('closed', () => {
             if (calendarManager) {
-                calendarManager.stopPolling();
+                // calendarManager.stopPolling(); // This method doesn't exist
             }
             mainWindow = null;
         });
