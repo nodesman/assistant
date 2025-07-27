@@ -10,7 +10,7 @@
         <h4>{{ category.name }}</h4>
         <ul>
           <li v-for="action in category.actions" :key="action.name">
-            <button @click="emitAction(action.prompt)">
+            <button @click="handleActionClick(action)">
               <span class="action-icon">{{ action.icon }}</span>
               <span class="action-name">{{ action.name }}</span>
             </button>
@@ -18,63 +18,116 @@
         </ul>
       </div>
     </div>
+    <ActionDialog
+      :visible="isDialogVisible"
+      :title="dialogTitle"
+      :params="dialogParams"
+      :get-events="getEvents"
+      @submit="handleDialogSubmit"
+      @close="handleDialogClose"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, defineEmits } from 'vue';
+import { ref, defineEmits, onMounted } from 'vue';
+import ActionDialog from './ActionDialog.vue';
 
-const isCollapsed = ref(true);
+const isCollapsed = ref(false);
 const emit = defineEmits(['action-clicked', 'update:collapsed']);
+
+const isDialogVisible = ref(false);
+const dialogTitle = ref('');
+const dialogParams = ref([]);
+const activeAction = ref(null);
+const projects = ref([]);
+
+const getEvents = async (date) => {
+  const timeMin = new Date(date).toISOString();
+  const timeMax = new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000).toISOString();
+  // @ts-ignore
+  return await window.api.getCalendarEvents(timeMin, timeMax);
+};
+
+onMounted(async () => {
+  // @ts-ignore
+  projects.value = await window.api.getAllProjects();
+  updateActionParams();
+});
 
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value;
   emit('update:collapsed', isCollapsed.value);
 };
 
-const emitAction = (prompt: string) => {
-  emit('action-clicked', prompt);
+const handleActionClick = (action) => {
+  if (action.params) {
+    activeAction.value = action;
+    dialogTitle.value = action.name;
+    dialogParams.value = action.params;
+    isDialogVisible.value = true;
+  } else {
+    emit('action-clicked', action.prompt);
+  }
 };
 
-const actionCategories = ref([
-  {
-    name: 'Agenda & Planning',
-    actions: [
-      { name: 'What is my day like?', icon: '📅', prompt: "What's on my agenda for today?" },
-      { name: 'Plan my day', icon: '🗺️', prompt: 'Based on my calendar and tasks, can you help me plan my day?' },
-      { name: 'Any upcoming deadlines?', icon: '⌛', prompt: 'What are my upcoming task deadlines?' },
-      { name: 'Suggest a focus for today', icon: '🎯', prompt: 'What is the most important thing I should focus on today?' },
-    ],
-  },
-  {
-    name: 'Projects',
-    actions: [
-      { name: 'Create new project', icon: '➕', prompt: 'Create a new project called "New Project"' },
-      { name: 'List all projects', icon: '📚', prompt: 'List all my projects' },
-      { name: 'Summarize a project', icon: '📝', prompt: 'Give me a summary of the "Website Redesign" project.' },
-      { name: 'Show active projects', icon: '🚀', prompt: 'Which projects are currently active?' },
-    ],
-  },
-  {
-    name: 'Tasks',
-    actions: [
-      { name: 'Add a new task', icon: '✅', prompt: 'Add a new task: ' },
-      { name: 'Show my tasks', icon: '📋', prompt: 'Show me all my tasks' },
-      { name: 'What are my overdue tasks?', icon: '❗', prompt: 'What are my overdue tasks?' },
-      { name: 'Mark a task complete', icon: '✔️', prompt: 'Mark task "Design new homepage" as complete' },
-    ],
-  },
-  {
-    name: 'Calendar',
-    actions: [
-      { name: 'Schedule an event', icon: '🗓️', prompt: 'Schedule a meeting for tomorrow at 2pm to ' },
-      { name: 'Show this week\'s calendar', icon: '📆', prompt: 'Show my calendar for this week' },
-      { name: 'Find free time', icon: '🔍', prompt: 'When am I free next week for a 1-hour meeting?' },
-      { name: 'Cancel an event', icon: '❌', prompt: 'Cancel my meeting tomorrow at 2pm' },
-    ],
-  },
-]);
+const handleDialogSubmit = (values) => {
+  let prompt = activeAction.value.prompt;
+  for (const key in values) {
+    prompt = prompt.replace(`{${key}}`, values[key]);
+  }
+  emit('action-clicked', prompt);
+  isDialogVisible.value = false;
+};
+
+const handleDialogClose = () => {
+  isDialogVisible.value = false;
+};
+
+const actionCategories = ref([]);
+
+const updateActionParams = () => {
+  actionCategories.value = [
+    {
+      name: 'Agenda & Planning',
+      actions: [
+        { name: 'What is my day like?', icon: '📅', prompt: "What's on my agenda for today?" },
+        { name: 'Plan my day', icon: '🗺️', prompt: 'Based on my calendar and tasks, can you help me plan my day?' },
+        { name: 'Any upcoming deadlines?', icon: '⌛', prompt: 'What are my upcoming task deadlines?' },
+        { name: 'Suggest a focus for today', icon: '🎯', prompt: 'What is the most important thing I should focus on today?' },
+      ],
+    },
+    {
+      name: 'Projects',
+      actions: [
+        { name: 'Create new project', icon: '➕', prompt: 'Create a new project called "{projectName}"', params: [{ name: 'projectName', label: 'Project Name', type: 'text', placeholder: 'Enter project name' }] },
+        { name: 'List all projects', icon: '📚', prompt: 'List all my projects' },
+        { name: 'Summarize a project', icon: '📝', prompt: 'Give me a summary of the "{projectName}" project.', params: [{ name: 'projectName', label: 'Project Name', type: 'text', placeholder: 'Enter project name' }] },
+        { name: 'Show active projects', icon: '🚀', prompt: 'Which projects are currently active?' },
+      ],
+    },
+    {
+      name: 'Tasks',
+      actions: [
+        { name: 'Add a new task', icon: '✅', prompt: 'Add a new task: {taskDescription} to project {projectName}', params: [{ name: 'projectName', label: 'Project', type: 'select', options: projects.value.map(p => ({ label: p.name, value: p.name })) }, { name: 'taskDescription', label: 'Task Description', type: 'text', placeholder: 'Enter task description' }] },
+        { name: 'Show my tasks', icon: '📋', prompt: 'Show me all my tasks' },
+        { name: 'What are my overdue tasks?', icon: '❗', prompt: 'What are my overdue tasks?' },
+        { name: 'Mark a task complete', icon: '✔️', prompt: 'Mark task "{taskName}" as complete', params: [{ name: 'taskName', label: 'Task Name', type: 'text', placeholder: 'Enter task name' }] },
+      ],
+    },
+    {
+      name: 'Calendar',
+      actions: [
+        { name: 'Schedule an event', icon: '🗓️', prompt: 'Schedule a meeting on {date} to {eventTitle}', params: [{ name: 'eventTitle', label: 'Event Title', type: 'text', placeholder: 'Enter event title' }, { name: 'date', label: 'Date', type: 'date' }] },
+        { name: 'Show this week\'s calendar', icon: '📆', prompt: 'Show my calendar for this week' },
+        { name: 'Find free time', icon: '🔍', prompt: 'When am I free next week for a {duration} meeting?', params: [{ name: 'duration', label: 'Duration', type: 'text', placeholder: 'e.g., 1-hour' }] },
+        { name: 'Cancel an event', icon: '❌', prompt: 'Cancel my meeting on {date}', params: [{ name: 'date', label: 'Date', type: 'date' }, { name: 'eventId', label: 'Event', type: 'async-select', dependsOn: 'date' }] },
+      ],
+    },
+  ];
+};
 </script>
+
 
 <style scoped>
 .action-palette {

@@ -291,6 +291,7 @@ onUnmounted(() => {
   flex-direction: column;
   height: 100%;
   background-color: #f0f4f8;
+  padding-right: 10px;
 }
 .messages {
   flex-grow: 1;

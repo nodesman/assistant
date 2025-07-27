@@ -1,5 +1,6 @@
 // src/main/index.ts
 import { app, BrowserWindow, ipcMain } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import path from 'path';
 import { ProjectManager } from '../ProjectManager';
 import { AIManager } from '../AIManager';
@@ -55,7 +56,10 @@ async function main() {
         }
     }
 
-    app.on('ready', createWindow);
+    app.on('ready', () => {
+        createWindow();
+        autoUpdater.checkForUpdatesAndNotify();
+    });
 
     // Handle geolocation permission requests
     const partition = require('electron').session.defaultSession;
@@ -80,7 +84,7 @@ async function main() {
     });
 
     // IPC Handlers
-    ipcMain.handle('get-projects', () => projectManager.getAllProjects());
+    ipcMain.handle('get-all-projects', () => projectManager.getAllProjects());
     ipcMain.handle('create-project', (event, project) => projectManager.createProject(project));
     ipcMain.handle('get-goals', () => horizonsManager.getHorizons());
     ipcMain.handle('get-journal-entries', () => journalManager.getAllEntries());

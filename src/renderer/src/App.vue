@@ -28,7 +28,7 @@ import ActionPalette from './components/ActionPalette.vue';
 const activeTab = ref('Chat');
 const showOnboarding = ref(false);
 const chatInterfaceRef = ref(null);
-const isPaletteCollapsed = ref(true);
+const isPaletteCollapsed = ref(false);
 
 const handleAction = (prompt: string) => {
   if (activeTab.value !== 'Chat') {

@@ -1,6 +1,23 @@
 # Kanban Board
 
+## Backlog
+
+- [ ] **Epic: AI-Powered Automatic Task Scheduling.**
+  - **Description:** Evolve the assistant from a passive task list into a proactive scheduling partner. The system will automatically find time on the user's calendar to complete their tasks, inspired by features from apps like Motion.
+  - **Key Components:**
+    - **Automatic Time-Blocking:** Scan connected calendars for free time within defined "working hours" and schedule unscheduled tasks.
+    - **Task Duration:** Add an "estimated time" field to tasks, which is required for scheduling.
+    - **Workspaces/Realms:** Allow users to create contexts (e.g., "Work", "Personal") that link specific tasks to specific calendars and scheduling rules.
+    - **Dynamic Rescheduling:** If a scheduled task is not completed or a conflict arises, the system should automatically find the next available slot.
+
 ## To Do
+
+- [ ] **Feature: Conversational Project/Task Search.**
+  - **Description:** The user should be able to conversationally find a specific project or task. For example, "find the project about X" or "show me the task about Y".
+
+- [ ] **Feature: Action Palette with Arguments.**
+  - **Description:** Allow actions in the action palette to accept arguments directly after being triggered.
+  - **Decision:** We have decided on a primary implementation strategy. See [ACTION_PALETTE_DECISION.md](ACTION_PALETTE_DECISION.md) for details.
 
 - [ ] **Bug: Calendar events for future dates are not being fetched.**
   - **Description:** The chat interface is not displaying calendar events that occur in the future, even when the date range provided to the `get_calendar_events` function is correct.

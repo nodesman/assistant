@@ -111,6 +111,47 @@ export class AIManager implements AiClient {
                     required: ["action", "targetCalendarId", "summary", "events"],
                 },
             },
+            {
+                name: "get_projects_and_tasks",
+                description: "Get a list of all projects and their associated tasks to understand the user's work.",
+                parameters: { type: "OBJECT", properties: {} },
+            },
+            {
+                name: "create_project",
+                description: "Create a new project with a given title.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        title: { type: "STRING", description: "The title for the new project." },
+                    },
+                    required: ["title"],
+                },
+            },
+            {
+                name: "add_task_to_project",
+                description: "Add a new task to a specified project.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        projectTitle: { type: "STRING", description: "The exact title of the project to add the task to." },
+                        taskTitle: { type: "STRING", description: "The title of the new task." },
+                        taskBody: { type: "STRING", description: "Optional description for the new task." },
+                    },
+                    required: ["projectTitle", "taskTitle"],
+                },
+            },
+            {
+                name: "update_task_status",
+                description: "Update the status of an existing task. To get the task's details first, use `get_projects_and_tasks`.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        taskTitle: { type: "STRING", description: "The exact title of the task to update." },
+                        newStatus: { type: "STRING", enum: ["To Do", "In Progress", "Done"], description: "The new status for the task." },
+                    },
+                    required: ["taskTitle", "newStatus"],
+                },
+            },
         ];
         return [{ functionDeclarations }];
     }
@@ -211,6 +252,49 @@ export class AIManager implements AiClient {
                         case 'list_calendars':
                             const calendars = await this.calendarManager.getCalendarList();
                             apiResponse = { calendars: calendars.map(c => ({ id: c.id, summary: c.summary, primary: c.primary })) };
+                            break;
+                        case 'get_projects_and_tasks':
+                            const projects = await this.projectManager.getAllProjects();
+                            apiResponse = {
+                                projects: projects.map(p => ({
+                                    title: p.title,
+                                    tasks: p.tasks.map(t => ({ title: t.title, status: t.status })),
+                                })),
+                            };
+                            break;
+                        case 'create_project':
+                            await this.projectManager.createProject({ title: call.args.title });
+                            apiResponse = { success: true, message: `Project '${call.args.title}' created.` };
+                            break;
+                        case 'add_task_to_project':
+                            const allProjectsForAdd = await this.projectManager.getAllProjects();
+                            const targetProject = allProjectsForAdd.find(p => p.title === call.args.projectTitle);
+                            if (targetProject) {
+                                await this.projectManager.addTask(targetProject.id, {
+                                    title: call.args.taskTitle,
+                                    body: call.args.taskBody || '',
+                                    status: 'To Do',
+                                });
+                                apiResponse = { success: true, message: `Task '${call.args.taskTitle}' added to project '${call.args.projectTitle}'.` };
+                            } else {
+                                apiResponse = { success: false, error: `Project '${call.args.projectTitle}' not found.` };
+                            }
+                            break;
+                        case 'update_task_status':
+                            const allProjectsForUpdate = await this.projectManager.getAllProjects();
+                            let taskFound = false;
+                            for (const project of allProjectsForUpdate) {
+                                const targetTask = project.tasks.find(t => t.title === call.args.taskTitle);
+                                if (targetTask) {
+                                    await this.projectManager.updateTask(targetTask.id, { status: call.args.newStatus });
+                                    apiResponse = { success: true, message: `Task '${call.args.taskTitle}' status updated to '${call.args.newStatus}'.` };
+                                    taskFound = true;
+                                    break;
+                                }
+                            }
+                            if (!taskFound) {
+                                apiResponse = { success: false, error: `Task '${call.args.taskTitle}' not found.` };
+                            }
                             break;
                         default:
                             throw new Error(`Unrecognized function call: ${call.name}`);
