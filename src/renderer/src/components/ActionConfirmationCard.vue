@@ -6,7 +6,7 @@
     <div class="card-body">
       <div class="form-group">
         <label for="calendar-select">Target Calendar:</label>
-        <select id="calendar-select" v-model="selectedCalendarId" @change="onCalendarChange">
+        <select id="calendar-select" v-model="selectedCalendarId">
           <option v-for="calendar in calendars" :key="calendar.id" :value="calendar.id">
             {{ calendar.summary }}
           </option>
@@ -54,16 +54,11 @@ const fetchCalendars = async () => {
   }
 };
 
-const onCalendarChange = () => {
-  isLoading.value = true;
-  emit('re-evaluate', {
-    originalPrompt: props.plan.originalPrompt,
-    targetCalendarId: selectedCalendarId.value,
-  });
-};
+
 
 const approve = () => {
-  emit('approve', props.plan);
+  const updatedPlan = { ...props.plan, targetCalendarId: selectedCalendarId.value };
+  emit('approve', updatedPlan);
 };
 
 const dismiss = () => {

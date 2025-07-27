@@ -13,12 +13,12 @@ import { ProjectManager } from "./ProjectManager";
 export class AIManager implements AiClient {
     private config: AIConfig;
     private googleAI: GoogleGenerativeAI | null = null;
-    private calendarManager: CalendarManager;
+    private getCalendarManager: () => CalendarManager;
     private projectManager: ProjectManager;
 
-    constructor(config: AIConfig, calendarManager: CalendarManager, projectManager: ProjectManager) {
+    constructor(config: AIConfig, getCalendarManager: () => CalendarManager, projectManager: ProjectManager) {
         this.config = config;
-        this.calendarManager = calendarManager;
+        this.getCalendarManager = getCalendarManager;
         this.projectManager = projectManager;
         this.initializeClient();
     }
@@ -35,6 +35,11 @@ export class AIManager implements AiClient {
             this.googleAI = null;
             console.warn(`AI Manager not initialized: Gemini API key not found.`);
         }
+    }
+
+    public reinitialize(newConfig: AIConfig): void {
+        this.config = newConfig;
+        this.initializeClient();
     }
 
     public isReady(): boolean {
@@ -182,138 +187,154 @@ export class AIManager implements AiClient {
             return { role: 'model', content: "No message to respond to." };
         }
 
-        // The 'history' for startChat should be everything *except* the last message.
         const chatHistoryForInit: Content[] = history.map(msg => ({
-            // Convert 'system' role to 'user' for the API
             role: msg.role === 'system' ? 'user' : msg.role,
             parts: [{ text: msg.content }],
         }));
 
-        // The Google API requires the history array to start with a 'user' role.
         if (chatHistoryForInit.length > 0 && chatHistoryForInit[0].role !== 'user') {
             chatHistoryForInit[0].role = 'user';
         }
 
         const chat = model.startChat({ history: chatHistoryForInit });
+        const result = await chat.sendMessage(lastMessage.content);
+        return this.processModelResponse(result, lastMessage.content, chat, onUpdate);
+    }
 
-        try {
-            let result = await chat.sendMessage(lastMessage.content);
+    async continueChat(history: ChatMessage[], plan: AnyPlan, userResponse: string, onUpdate: (update: any) => void): Promise<ChatMessage> {
+        if (!this.isReady() || !this.googleAI) {
+            return { role: 'model', content: "The AI is not available." };
+        }
 
-            while (true) {
-                const call = result.response.functionCalls()?.[0];
-                if (!call) {
-                    const responseText = result.response.text();
-                    onUpdate({ status: 'done', content: 'Finished generating response.' });
-                    return { role: 'model', content: String(responseText) };
-                }
+        const model = this.googleAI.getGenerativeModel({ model: this.config.model, tools: this.getTools() });
+        
+        // We need to reconstruct the history for the model, including the original prompt that led to the plan.
+        const chatHistory: Content[] = history.map(msg => ({
+            role: msg.role === 'system' ? 'user' : msg.role,
+            parts: [{ text: msg.content }],
+        }));
 
-                // --- Handle Plan-based Function Calls ---
-                if (call.name === 'propose_calendar_action_plan' || call.name === 'request_calendar_selection') {
-                    onUpdate({ status: 'plan_generated', content: 'Plan ready for review.' });
-                    const plan: AnyPlan = {
-                        type: call.name === 'propose_calendar_action_plan' ? 'calendar_plan' : 'calendar_selection_request',
-                        originalPrompt: String(lastMessage.content),
-                        ...JSON.parse(JSON.stringify(call.args)),
-                    };
-                    return {
-                        role: 'model',
-                        content: String(call.args.summary),
-                        plan: plan,
-                    };
-                }
+        // The original user message that started this whole flow
+        const originalUserMessage = history.find(m => m.role === 'user');
+        if (!originalUserMessage) {
+            return { role: 'model', content: "Error: Could not find the original user message in history." };
+        }
 
-                // --- Handle Information-Gathering Function Calls ---
-                onUpdate({ status: 'tool_call', name: call.name, args: call.args });
-                const functionResponseParts: Part[] = [];
-                try {
-                    let apiResponse;
-                    switch (call.name) {
-                        case 'get_calendar_events':
-                            // Fetch calendar events, but on error return empty list rather than abort
-                            const allCalendars = await this.calendarManager.getCalendarList();
-                            const allCalendarIds = allCalendars.map(c => c.id);
-                            let fetchedEvents;
-                            try {
-                                fetchedEvents = await this.calendarManager.getCalendarEvents(call.args.startDate, call.args.endDate, allCalendarIds);
-                            } catch (err) {
-                                console.error('Error fetching calendar events:', err);
-                                fetchedEvents = [];
-                            }
-                            apiResponse = {
-                                events: fetchedEvents.map(e => ({
-                                    id: e.id,
-                                    summary: e.summary,
-                                    start: e.start,
-                                    end: e.end,
-                                    calendarId: e.calendarId,
-                                })),
-                            };
-                            break;
-                        case 'list_calendars':
-                            const calendars = await this.calendarManager.getCalendarList();
-                            apiResponse = { calendars: calendars.map(c => ({ id: c.id, summary: c.summary, primary: c.primary })) };
-                            break;
-                        case 'get_projects_and_tasks':
-                            const projects = await this.projectManager.getAllProjects();
-                            apiResponse = {
-                                projects: projects.map(p => ({
-                                    title: p.title,
-                                    tasks: p.tasks.map(t => ({ title: t.title, status: t.status })),
-                                })),
-                            };
-                            break;
-                        case 'create_project':
-                            await this.projectManager.createProject({ title: call.args.title });
-                            apiResponse = { success: true, message: `Project '${call.args.title}' created.` };
-                            break;
-                        case 'add_task_to_project':
-                            const allProjectsForAdd = await this.projectManager.getAllProjects();
-                            const targetProject = allProjectsForAdd.find(p => p.title === call.args.projectTitle);
-                            if (targetProject) {
-                                await this.projectManager.addTask(targetProject.id, {
-                                    title: call.args.taskTitle,
-                                    body: call.args.taskBody || '',
-                                    status: 'To Do',
-                                });
-                                apiResponse = { success: true, message: `Task '${call.args.taskTitle}' added to project '${call.args.projectTitle}'.` };
-                            } else {
-                                apiResponse = { success: false, error: `Project '${call.args.projectTitle}' not found.` };
-                            }
-                            break;
-                        case 'update_task_status':
-                            const allProjectsForUpdate = await this.projectManager.getAllProjects();
-                            let taskFound = false;
-                            for (const project of allProjectsForUpdate) {
-                                const targetTask = project.tasks.find(t => t.title === call.args.taskTitle);
-                                if (targetTask) {
-                                    await this.projectManager.updateTask(targetTask.id, { status: call.args.newStatus });
-                                    apiResponse = { success: true, message: `Task '${call.args.taskTitle}' status updated to '${call.args.newStatus}'.` };
-                                    taskFound = true;
-                                    break;
-                                }
-                            }
-                            if (!taskFound) {
-                                apiResponse = { success: false, error: `Task '${call.args.taskTitle}' not found.` };
-                            }
-                            break;
-                        default:
-                            throw new Error(`Unrecognized function call: ${call.name}`);
-                    }
-                    functionResponseParts.push({
-                        functionResponse: { name: call.name, response: apiResponse },
-                    });
-                } catch (e) {
-                    console.error(`Error executing function ${call.name}:`, e);
-                    functionResponseParts.push({
-                        functionResponse: { name: call.name, response: { error: e.message } },
-                    });
-                }
+        // Reconstruct the function call that led to the calendar selection request
+        const functionCallPart: Part = {
+            functionCall: {
+                name: 'request_calendar_selection',
+                args: (plan as CalendarSelectionRequest).calendars ? { calendars: (plan as CalendarSelectionRequest).calendars } : {},
+            },
+        };
+        chatHistory.push({ role: 'model', parts: [functionCallPart] });
 
-                result = await chat.sendMessage(functionResponseParts);
+        // Construct the function response from the user's selection
+        const functionResponsePart: Part = {
+            functionResponse: {
+                name: 'request_calendar_selection',
+                response: { selectedCalendarId: userResponse },
+            },
+        };
+        
+        // Start a new chat with the reconstructed history
+        const chat = model.startChat({ history: chatHistory });
+        
+        // Send the user's selection back to the model.
+        // The model should now have enough context (original prompt + selected calendar)
+        // to call `propose_calendar_action_plan`.
+        const result = await chat.sendMessage([functionResponsePart]);
+        
+        // Process the response, which should hopefully be the final action plan.
+        return this.processModelResponse(result, originalUserMessage.content, chat, onUpdate);
+    }
+
+    private async processModelResponse(
+        result: any,
+        originalPrompt: string,
+        chat: any,
+        onUpdate: (update: any) => void
+    ): Promise<ChatMessage> {
+        while (true) {
+            const call = result.response.functionCalls()?.[0];
+            if (!call) {
+                const responseText = result.response.text();
+                onUpdate({ status: 'done', content: 'Finished generating response.' });
+                return { role: 'model', content: String(responseText) };
             }
-        } catch (e) {
-            console.error("Error in generateChatResponse:", e);
-            return { role: 'model', content: "An error occurred while processing your request." };
+
+            if (call.name === 'propose_calendar_action_plan' || call.name === 'request_calendar_selection') {
+                onUpdate({ status: 'plan_generated', content: 'Plan ready for review.' });
+                const plan: AnyPlan = {
+                    type: call.name === 'propose_calendar_action_plan' ? 'calendar_plan' : 'calendar_selection_request',
+                    originalPrompt: originalPrompt,
+                    ...JSON.parse(JSON.stringify(call.args)),
+                };
+                return {
+                    role: 'model',
+                    content: String(call.args.summary),
+                    plan: plan,
+                };
+            }
+
+            onUpdate({ status: 'tool_call', name: call.name, args: call.args });
+            const functionResponseParts: Part[] = [];
+            try {
+                let apiResponse;
+                switch (call.name) {
+                    case 'get_calendar_events':
+                        const allCalendars = await this.getCalendarManager().getCalendarList();
+                        const allCalendarIds = allCalendars.map(c => c.id);
+                        apiResponse = { events: (await this.getCalendarManager().getCalendarEvents(call.args.startDate, call.args.endDate, allCalendarIds)).map(e => ({ id: e.id, summary: e.summary, start: e.start, end: e.end, calendarId: e.calendarId })) };
+                        break;
+                    case 'list_calendars':
+                        const calendars = await this.getCalendarManager().getCalendarList();
+                        apiResponse = { calendars: calendars.map(c => ({ id: c.id, summary: c.summary, primary: c.primary })) };
+                        break;
+                    case 'get_projects_and_tasks':
+                        const projects = await this.projectManager.getAllProjects();
+                        apiResponse = { projects: projects.map(p => ({ title: p.title, tasks: p.tasks.map(t => ({ title: t.title, status: t.status })) })) };
+                        break;
+                    case 'create_project':
+                        await this.projectManager.createProject({ title: call.args.title });
+                        apiResponse = { success: true, message: `Project '${call.args.title}' created.` };
+                        break;
+                    case 'add_task_to_project':
+                        const allProjectsForAdd = await this.projectManager.getAllProjects();
+                        const targetProject = allProjectsForAdd.find(p => p.title === call.args.projectTitle);
+                        if (targetProject) {
+                            await this.projectManager.addTask(targetProject.id, { title: call.args.taskTitle, body: call.args.taskBody || '', status: 'To Do' });
+                            apiResponse = { success: true, message: `Task '${call.args.taskTitle}' added to project '${call.args.projectTitle}'.` };
+                        } else {
+                            apiResponse = { success: false, error: `Project '${call.args.projectTitle}' not found.` };
+                        }
+                        break;
+                    case 'update_task_status':
+                        const allProjectsForUpdate = await this.projectManager.getAllProjects();
+                        let taskFound = false;
+                        for (const project of allProjectsForUpdate) {
+                            const targetTask = project.tasks.find(t => t.title === call.args.taskTitle);
+                            if (targetTask) {
+                                await this.projectManager.updateTask(targetTask.id, { status: call.args.newStatus });
+                                apiResponse = { success: true, message: `Task '${call.args.taskTitle}' status updated to '${call.args.newStatus}'.` };
+                                taskFound = true;
+                                break;
+                            }
+                        }
+                        if (!taskFound) {
+                            apiResponse = { success: false, error: `Task '${call.args.taskTitle}' not found.` };
+                        }
+                        break;
+                    default:
+                        throw new Error(`Unrecognized function call: ${call.name}`);
+                }
+                functionResponseParts.push({ functionResponse: { name: call.name, response: apiResponse } });
+            } catch (e) {
+                console.error(`Error executing function ${call.name}:`, e);
+                functionResponseParts.push({ functionResponse: { name: call.name, response: { error: e.message } } });
+            }
+
+            result = await chat.sendMessage(functionResponseParts);
         }
     }
     
@@ -377,7 +398,7 @@ export class AIManager implements AiClient {
         log(`Found ${existingTitles.size} existing projects.`);
         log("Step 1: Identifying project titles from the document...");
         const getTitlesModel = this.googleAI.getGenerativeModel({
-            model: 'gemini-1.5-flash',
+            model: 'gemini-2.5-pro',
             tools: [{ functionDeclarations: [projectTools[0].functionDeclarations.find(fd => fd.name === 'save_project_titles')] }],
         });
         const titlesPrompt = `You are an expert at parsing documents to extract project structures. A project is typically a heading or a title followed by a body of text and a list of tasks. Based on the following document, please identify all of the distinct project titles. ${userPrompt}\n---\n${fileContent}\n---`;
@@ -397,7 +418,7 @@ export class AIManager implements AiClient {
             return;
         }
         const getDetailsModel = this.googleAI.getGenerativeModel({
-            model: 'gemini-1.5-flash',
+            model: 'gemini-2.5-pro',
             tools: [{ functionDeclarations: [projectTools[0].functionDeclarations.find(fd => fd.name === 'save_project_details')] }],
         });
         for (const title of projectTitles) {
