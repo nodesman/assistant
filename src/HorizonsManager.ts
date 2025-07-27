@@ -8,7 +8,7 @@ export class HorizonsManager {
     private horizonsFilePath: string;
 
     constructor(config: Config) {
-        const configDir = path.dirname(config.getUserConfigPath());
+        const configDir = config.getUserDataPath();
         this.horizonsFilePath = path.join(configDir, 'horizons.yml');
     }
 

@@ -119,6 +119,7 @@ const updateActionParams = () => {
       name: 'Calendar',
       actions: [
         { name: 'Schedule an event', icon: '🗓️', prompt: 'Schedule a meeting on {date} to {eventTitle}', params: [{ name: 'eventTitle', label: 'Event Title', type: 'text', placeholder: 'Enter event title' }, { name: 'date', label: 'Date', type: 'date' }] },
+        { name: 'Schedule Daily Workout', icon: '🏋️', prompt: 'Schedule a daily workout at {startTime} for {duration} minutes', params: [{ name: 'startTime', label: 'Start Time', type: 'time' }, { name: 'duration', label: 'Duration (minutes)', type: 'number', placeholder: '60' }] },
         { name: 'Show this week\'s calendar', icon: '📆', prompt: 'Show my calendar for this week' },
         { name: 'Find free time', icon: '🔍', prompt: 'When am I free next week for a {duration} meeting?', params: [{ name: 'duration', label: 'Duration', type: 'text', placeholder: 'e.g., 1-hour' }] },
         { name: 'Cancel an event', icon: '❌', prompt: 'Cancel my meeting on {date}', params: [{ name: 'date', label: 'Date', type: 'date' }, { name: 'eventId', label: 'Event', type: 'async-select', dependsOn: 'date' }] },

@@ -60,3 +60,12 @@ out/
 release/
 dist-electron/
 # Other electron-builder artifacts
+# Google API Credentials
+config/google-credentials.json
+
+# Google API Credentials
+config/google-credentials.dev.json
+config/google-credentials.prod.json
+
+# Environment variables
+.env

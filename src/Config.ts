@@ -2,11 +2,9 @@
 import fs from 'fs/promises';
 import path from 'path';
 import yaml from 'js-yaml';
-import { JournalConfig, AIConfig } from './types';
+import { JournalConfig } from './types';
 import os from 'os';
 
-// Define a standard location for this tool's user-specific config
-const DEFAULT_USER_CONFIG_PATH = path.join(os.homedir(), '.config', 'personal-journal-cli', 'config.yaml');
 // Path to the default config bundled with the application
 const BUNDLED_DEFAULT_CONFIG_PATH = path.resolve(process.cwd(), 'config/config.yaml');
 
@@ -38,24 +36,32 @@ function isObject(item: any): boolean {
 
 export class Config {
     private static _instance: Config;
-    private configPath: string;
+    private static _userDataPath: string;
+    private configFilePath: string;
     private _config: JournalConfig | null = null;
 
-    private constructor(configPath?: string) {
-        this.configPath = configPath || DEFAULT_USER_CONFIG_PATH;
+    private constructor(userDataPath: string) {
+        this.configFilePath = path.join(userDataPath, 'config.yaml');
     }
 
-    public static async getInstance(configPath?: string): Promise<Config> {
+    public static async getInstance(userDataPath?: string): Promise<Config> {
         if (!Config._instance) {
-            const newInstance = new Config(configPath);
+            if (!userDataPath) {
+                throw new Error("UserDataPath must be provided on the first call to Config.getInstance()");
+            }
+            Config._userDataPath = userDataPath;
+            const newInstance = new Config(Config._userDataPath);
             await newInstance.loadConfig();
             Config._instance = newInstance;
         }
         return Config._instance;
     }
     
-    public static async reloadInstance(configPath?: string): Promise<Config> {
-        const newInstance = new Config(configPath);
+    public static async reloadInstance(): Promise<Config> {
+        if (!Config._userDataPath) {
+            throw new Error("Config has not been initialized. Call getInstance with userDataPath first.");
+        }
+        const newInstance = new Config(Config._userDataPath);
         await newInstance.loadConfig();
         Config._instance = newInstance;
         return Config._instance;
@@ -95,8 +101,8 @@ export class Config {
 
         try {
             // Ensure directory exists
-            await fs.mkdir(path.dirname(this.configPath), { recursive: true });
-            const userConfigContent = await fs.readFile(this.configPath, 'utf-8');
+            await fs.mkdir(Config._userDataPath, { recursive: true });
+            const userConfigContent = await fs.readFile(this.configFilePath, 'utf-8');
             userConfig = yaml.load(userConfigContent) as Partial<JournalConfig>;
             if (userConfig.journal_directory) {
                 userConfig.journal_directory = this.expandTilde(userConfig.journal_directory);
@@ -123,37 +129,35 @@ export class Config {
             await this.loadConfig();
         }
         
-        // Create a deep copy of the new values to avoid modifying the original object
         const newValuesCopy = JSON.parse(JSON.stringify(newValues));
 
-        // Read the existing user config file
         let userConfig: Partial<JournalConfig> = {};
         try {
-            const userConfigContent = await fs.readFile(this.configPath, 'utf-8');
+            const userConfigContent = await fs.readFile(this.configFilePath, 'utf-8');
             userConfig = (yaml.load(userConfigContent) as Partial<JournalConfig>) || {};
         } catch (error: any) {
             if (error.code !== 'ENOENT') {
                 console.error(`Error reading user config file for update:`, error);
             }
-            // If the file doesn't exist, userConfig remains {}
         }
 
-        // Deep merge the new values into the existing user config
         const updatedUserConfig = deepMerge(userConfig, newValuesCopy);
 
-        // Write the updated user config back to the file
         try {
-            await fs.writeFile(this.configPath, yaml.dump(updatedUserConfig), 'utf-8');
-            // Reload the in-memory config to reflect the changes
+            await fs.writeFile(this.configFilePath, yaml.dump(updatedUserConfig), 'utf-8');
             await this.loadConfig();
         } catch (error) {
             console.error(`Error writing updated user config to file:`, error);
-            throw error; // Re-throw the error to the caller
+            throw error;
         }
     }
 
+    public getUserDataPath(): string {
+        return Config._userDataPath;
+    }
 
-    public getUserConfigPath(): string {
-        return this.configPath;
+    public getDbPath(): string {
+        return path.join(Config._userDataPath, 'assistant.db');
     }
 }
+

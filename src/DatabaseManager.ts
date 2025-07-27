@@ -14,7 +14,7 @@ export class DatabaseManager {
 
     constructor(config: Config) {
         this.config = config;
-        const dbPath = path.join(path.dirname(this.config.getUserConfigPath()), 'assistant.db');
+        const dbPath = this.config.getDbPath();
         console.log(`Database path set to: ${dbPath}`);
 
         this.db = knex({

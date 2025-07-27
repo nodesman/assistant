@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('api', {
   createCalendarEvent: (eventBody, calendarId) => ipcRenderer.invoke('create-calendar-event', eventBody, calendarId),
   updateCalendarEvent: (eventId, eventBody, calendarId) => ipcRenderer.invoke('update-calendar-event', eventId, eventBody, calendarId),
   deleteCalendarEvent: (eventId, calendarId) => ipcRenderer.invoke('delete-calendar-event', eventId, calendarId),
+  scheduleRecurringEvent: (eventDetails) => ipcRenderer.invoke('schedule-recurring-event', eventDetails),
   
   // AI Chat & Planning
   generateChatResponse: (history, calendarContext) => ipcRenderer.invoke('generate-chat-response', history, calendarContext),

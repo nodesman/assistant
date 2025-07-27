@@ -37,9 +37,12 @@
           <div v-if="isAuthorized" class="auth-success">
             <p>✓ Successfully connected!</p>
           </div>
-          <button v-else @click="authorize" class="button-primary" :disabled="isAuthorizing">
+          <button v-else @click="authorize" class="button-primary" :disabled="isAuthorizing || !googleCredentialsConfigured">
             {{ isAuthorizing ? 'Connecting...' : 'Connect Google Account' }}
           </button>
+          <p v-if="!googleCredentialsConfigured" class="small-text">
+            Please configure your Google API credentials in the settings before connecting your account.
+          </p>
         </div>
 
         <!-- Step 4: Create First Project -->

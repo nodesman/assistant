@@ -21,8 +21,10 @@ async function main() {
     // Wait for app to be ready to access userData path
     await app.whenReady();
 
+    const userDataPath = app.getPath('userData');
+
     // Instantiate managers
-    const config = await Config.getInstance();
+    const config = await Config.getInstance(userDataPath);
     const userState = await UserState.getInstance();
     const chatManager = ChatManager.getInstance();
     const dbManager = new DatabaseManager(config);
@@ -30,9 +32,24 @@ async function main() {
     await dbManager.migrateFromYaml();
 
     const projectManager = new ProjectManager(dbManager);
-    const calendarManager = new CalendarManager(config);
-    const authManager = new AuthManager(config);
-    const aiManager = new AIManager(config.get().ai, calendarManager, projectManager);
+    let authManager: AuthManager | null = null;
+    let calendarManager: CalendarManager | null = null;
+
+    const getAuthManager = (): AuthManager => {
+        if (!authManager) {
+            authManager = new AuthManager(config);
+        }
+        return authManager;
+    }
+
+    const getCalendarManager = (): CalendarManager => {
+        if (!calendarManager) {
+            calendarManager = new CalendarManager(config);
+        }
+        return calendarManager;
+    }
+
+    const aiManager = new AIManager(config.get().ai, getCalendarManager, projectManager);
     const textParser = new TextParser(aiManager);
     const horizonsManager = new HorizonsManager(config);
     const journalManager = new JournalManager(config);
@@ -88,11 +105,13 @@ async function main() {
     ipcMain.handle('create-project', (event, project) => projectManager.createProject(project));
     ipcMain.handle('get-goals', () => horizonsManager.getHorizons());
     ipcMain.handle('get-journal-entries', () => journalManager.getAllEntries());
-    ipcMain.handle('get-calendar-list', () => calendarManager.getCalendarList());
-    ipcMain.handle('get-calendar-events', (event, timeMin, timeMax, calendarIds) => calendarManager.getCalendarEvents(timeMin, timeMax, calendarIds));
-    ipcMain.handle('create-calendar-event', (event, eventBody, calendarId) => calendarManager.createCalendarEvent(eventBody, calendarId));
-    ipcMain.handle('update-calendar-event', (event, eventId, eventBody, calendarId) => calendarManager.updateCalendarEvent(eventId, eventBody, calendarId));
-    ipcMain.handle('delete-calendar-event', (event, eventId, calendarId) => calendarManager.deleteCalendarEvent(eventId, calendarId));
+    
+    ipcMain.handle('get-calendar-list', () => getCalendarManager().getCalendarList());
+    ipcMain.handle('get-calendar-events', (event, timeMin, timeMax, calendarIds) => getCalendarManager().getCalendarEvents(timeMin, timeMax, calendarIds));
+    ipcMain.handle('create-calendar-event', (event, eventBody, calendarId) => getCalendarManager().createCalendarEvent(eventBody, calendarId));
+    ipcMain.handle('update-calendar-event', (event, eventId, eventBody, calendarId) => getCalendarManager().updateCalendarEvent(eventId, eventBody, calendarId));
+    ipcMain.handle('delete-calendar-event', (event, eventId, calendarId) => getCalendarManager().deleteCalendarEvent(eventId, calendarId));
+    ipcMain.handle('schedule-recurring-event', (event, eventDetails) => getCalendarManager().scheduleRecurringEvent(eventDetails));
     
     ipcMain.handle('generate-chat-response', (event, history, calendarContext) => {
         const onUpdate = (update: any) => {
@@ -103,9 +122,10 @@ async function main() {
 
     ipcMain.handle('execute-calendar-plan', async (event, plan) => {
         try {
+            const calManager = getCalendarManager();
             if (plan.action === 'create') {
                 for (const ev of plan.events) {
-                    await calendarManager.createCalendarEvent({
+                    await calManager.createCalendarEvent({
                         summary: ev.summary,
                         description: ev.description || '',
                         start: { dateTime: ev.startTime },
@@ -115,7 +135,7 @@ async function main() {
                 return { success: true, message: `Successfully created ${plan.events.length} event(s).` };
             } else if (plan.action === 'delete') {
                 for (const ev of plan.events) {
-                    await calendarManager.deleteCalendarEvent(ev.eventId, plan.targetCalendarId);
+                    await calManager.deleteCalendarEvent(ev.eventId, plan.targetCalendarId);
                 }
                 return { success: true, message: `Successfully deleted ${plan.events.length} event(s).` };
             } else if (plan.action === 'update') {
@@ -126,11 +146,10 @@ async function main() {
                         start: { dateTime: ev.startTime },
                         end: { dateTime: ev.endTime },
                     };
-                    await calendarManager.updateCalendarEvent(ev.eventId, eventBody, plan.targetCalendarId);
+                    await calManager.updateCalendarEvent(ev.eventId, eventBody, plan.targetCalendarId);
                 }
                 return { success: true, message: `Successfully updated ${plan.events.length} event(s).` };
             }
-            // 'update' action can be added here later
             return { success: false, error: 'Unsupported action type.' };
         } catch (error) {
             console.error("Error executing calendar plan:", error);
@@ -142,11 +161,11 @@ async function main() {
     ipcMain.handle('authorize-google-account', (event) => {
         const window = BrowserWindow.fromWebContents(event.sender);
         if (window) {
-            return authManager.authorize(window);
+            return getAuthManager().authorize(window);
         }
     });
-    ipcMain.handle('get-authorized-user', () => authManager.getAuthorizedUser());
-    ipcMain.handle('remove-google-account', () => authManager.removeGoogleAccount());
+    ipcMain.handle('get-authorized-user', () => getAuthManager().getAuthorizedUser());
+    ipcMain.handle('remove-google-account', () => getAuthManager().removeGoogleAccount());
     ipcMain.handle('reload-window', (event) => {
         BrowserWindow.fromWebContents(event.sender)?.reload();
     });
@@ -174,13 +193,10 @@ async function main() {
 
     ipcMain.handle('update-config', async (event, newConfig) => {
         try {
-            const config = await Config.getInstance();
+            const config = await Config.getInstance(); // No path needed here anymore
             await config.updateConfig(newConfig);
             // Reload config to ensure all managers get the updated version
-            await Config.reloadInstance();
-            // You might need to re-initialize managers that depend on the config
-            // For now, we'll assume a restart is the simplest way to handle this.
-            // A more advanced implementation could re-initialize them live.
+            await Config.reloadInstance(); // No path needed here anymore
             return { success: true };
         } catch (error) {
             console.error("Failed to update config:", error);

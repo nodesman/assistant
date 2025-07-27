@@ -8,8 +8,8 @@
   },
   "scripts": {
     "dev": "electron-vite dev -- --no-sandbox",
-    "build": "electron-vite build",
-    "build:win": "electron-builder --win",
+    "build": "node scripts/prepare-config.mjs && electron-vite build",
+    "build:win": "npm run build && electron-builder --win",
     "start:assistant": "ts-node --project tsconfig.cli.json src/assistant_cli.ts",
     "test": "vitest"
   },
@@ -31,6 +31,7 @@
     "@milkdown/theme-nord": "^6.5.3",
     "@milkdown/vue": "^6.5.3",
     "commander": "^12.1.0",
+    "dotenv": "^17.2.1",
     "electron-updater": "^6.6.2",
     "express": "^4.19.2",
     "googleapis": "^128.0.0",

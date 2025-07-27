@@ -142,6 +142,46 @@ export class CalendarManager {
         }
     }
 
+    async scheduleRecurringEvent(eventDetails: {
+        title: string;
+        startTime: string;
+        duration: number;
+        calendarId?: string;
+    }): Promise<any> {
+        const { title, startTime, duration, calendarId = 'primary' } = eventDetails;
+        const calendar = await this.getCalendarClient();
+
+        const [hours, minutes] = startTime.split(':').map(Number);
+        const startDate = new Date();
+        startDate.setHours(hours, minutes, 0, 0);
+
+        const endDate = new Date(startDate.getTime() + duration * 60000);
+
+        const event = {
+            summary: title,
+            start: {
+                dateTime: startDate.toISOString(),
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            },
+            end: {
+                dateTime: endDate.toISOString(),
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            },
+            recurrence: ['RRULE:FREQ=DAILY'],
+        };
+
+        try {
+            const response = await calendar.events.insert({
+                calendarId,
+                requestBody: event,
+            });
+            console.log(`Recurring event created: "${title}"`);
+            return response.data;
+        } catch (error) {
+            console.error('Error creating recurring calendar event:', error);
+            throw error;
+        }
+    }
     async deleteEventsByQuery(query: string, timeMin: string, timeMax: string): Promise<{ deletedCount: number, details: string[] }> {
         const calendarList = await this.getCalendarList();
         const allCalendarIds = calendarList.map(cal => cal.id);

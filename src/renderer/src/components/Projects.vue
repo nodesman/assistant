@@ -181,16 +181,11 @@ const descriptionTab = ref<'edit' | 'preview'>('edit');
 
 const renderedBody = computed(() => selectedTask.value ? marked(selectedTask.value.body || '') : '');
 
-const fetchProjects = async (selectNewProject = false) => {
+const fetchProjects = async (selectLastProject = false) => {
   const lastProjectId = selectedProject.value?.id;
   try {
     projects.value = await window.api.getProjects();
-    if (selectNewProject) {
-        const newProject = projects.value[projects.value.length - 1];
-        if(newProject) {
-            selectedProject.value = newProject;
-        }
-    } else if (lastProjectId) {
+    if (selectLastProject && lastProjectId) {
         const projectToSelect = projects.value.find(p => p.id === lastProjectId);
         if(projectToSelect) {
             selectedProject.value = projectToSelect;
