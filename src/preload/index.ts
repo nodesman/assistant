@@ -18,20 +18,26 @@ contextBridge.exposeInMainWorld('api', {
   createJournalEntry: (entry) => ipcRenderer.invoke('create-journal-entry', entry),
   
   // Google Calendar
-  getCalendarList: () => ipcRenderer.invoke('get-calendar-list'),
-  getCalendarEvents: (timeMin, timeMax, calendarIds) => ipcRenderer.invoke('get-calendar-events', timeMin, timeMax, calendarIds),
+  getCalendarList: () => ipcRenderer.invoke('get-cached-calendar-list'),
+  getCalendarEvents: () => ipcRenderer.invoke('get-cached-calendar-events'),
+  forceCalendarRefresh: () => ipcRenderer.invoke('force-calendar-refresh'),
   createCalendarEvent: (eventBody, calendarId) => ipcRenderer.invoke('create-calendar-event', eventBody, calendarId),
   updateCalendarEvent: (eventId, eventBody, calendarId) => ipcRenderer.invoke('update-calendar-event', eventId, eventBody, calendarId),
   deleteCalendarEvent: (eventId, calendarId) => ipcRenderer.invoke('delete-calendar-event', eventId, calendarId),
   scheduleRecurringEvent: (eventDetails) => ipcRenderer.invoke('schedule-recurring-event', eventDetails),
+  onCalendarDataUpdate: (callback) => ipcRenderer.on('calendar-data-updated', callback),
   
   // AI Chat & Planning
+  reloadAiManager: () => ipcRenderer.invoke('reload-ai-manager'),
   generateChatResponse: (history, calendarContext) => ipcRenderer.invoke('generate-chat-response', history, calendarContext),
+  continueChat: (history, plan, userResponse) => ipcRenderer.invoke('continue-chat', history, plan, userResponse),
   executeCalendarPlan: (plan) => ipcRenderer.invoke('execute-calendar-plan', plan),
   isAiReady: () => ipcRenderer.invoke('is-ai-ready'),
   onAIUpdate: (callback) => ipcRenderer.on('ai-thinking-update', (_event, value) => callback(value)),
   
   // Google Authentication
+  areGoogleCredentialsConfigured: () => ipcRenderer.invoke('are-google-credentials-configured'),
+  isGoogleAuthConfigured: () => ipcRenderer.invoke('is-google-auth-configured'),
   authorizeGoogleAccount: () => ipcRenderer.invoke('authorize-google-account'),
   getAuthorizedUser: () => ipcRenderer.invoke('get-authorized-user'),
   removeGoogleAccount: () => ipcRenderer.invoke('remove-google-account'),

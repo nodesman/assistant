@@ -41,7 +41,8 @@
             {{ isAuthorizing ? 'Connecting...' : 'Connect Google Account' }}
           </button>
           <p v-if="!googleCredentialsConfigured" class="small-text">
-            Please configure your Google API credentials in the settings before connecting your account.
+            The Google API credentials are not configured in the application's settings.
+            <button @click="goToSettings" class="button-secondary">Go to Settings</button>
           </p>
         </div>
 
@@ -65,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 
 const emit = defineEmits(['finish']);
 
@@ -74,6 +75,15 @@ const geminiApiKey = ref('');
 const isAuthorized = ref(false);
 const isAuthorizing = ref(false);
 const projectTitle = ref('');
+const googleCredentialsConfigured = ref(false);
+
+onMounted(async () => {
+  try {
+    googleCredentialsConfigured.value = await window.api.areGoogleCredentialsConfigured();
+  } catch (error) {
+    console.error('Error checking Google credentials configuration:', error);
+  }
+});
 
 const canProceed = computed(() => {
   if (currentStep.value === 2) {
