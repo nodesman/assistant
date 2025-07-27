@@ -17,7 +17,7 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
-        external: ['sqlite3'],
+        external: ['sqlite3', 'better-sqlite3', 'pg', 'mysql', 'oracledb'],
         input: {
           index: resolve(__dirname, 'src/main/index.ts')
         },
