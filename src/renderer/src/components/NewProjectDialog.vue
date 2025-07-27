@@ -1,5 +1,5 @@
 <template>
-  <div class="dialog-overlay" @mousedown.stop @click.stop @keydown.esc="handleCancel" @keydown.enter.prevent="requestConfirm">
+  <div class="dialog-overlay" @mousedown.stop @click.stop @keydown.esc="handleCancel" @keydown.enter.prevent="handleConfirm">
     <div class="dialog-content">
       <h2>Create New Project</h2>
       <div class="form-group">
@@ -7,43 +7,29 @@
         <input type="text" v-model="projectTitle" placeholder="Enter project title" ref="titleInput" />
       </div>
       <div class="dialog-actions">
-        <button @click="requestConfirm" :disabled="!projectTitle.trim()">Create Project</button>
+        <button @click="handleConfirm" :disabled="!projectTitle.trim()">Create Project</button>
         <button @click="handleCancel">Cancel</button>
       </div>
     </div>
-    <GenericConfirmationDialog
-        v-if="showConfirmation"
-        title="Confirm Creation"
-        message="Are you sure you want to create this project?"
-        @confirm="handleConfirm"
-        @cancel="showConfirmation = false"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, defineEmits } from 'vue';
-import GenericConfirmationDialog from './GenericConfirmationDialog.vue';
 
 const emit = defineEmits(['confirm', 'cancel']);
 
 const projectTitle = ref('');
-const showConfirmation = ref(false);
 const titleInput = ref<HTMLInputElement | null>(null);
 
 onMounted(() => {
   titleInput.value?.focus();
 });
 
-const requestConfirm = () => {
-  if (projectTitle.value.trim()) {
-    showConfirmation.value = true;
-  }
-};
-
 const handleConfirm = () => {
-  emit('confirm', projectTitle.value.trim());
-  showConfirmation.value = false;
+  if (projectTitle.value.trim()) {
+    emit('confirm', projectTitle.value.trim());
+  }
 };
 
 const handleCancel = () => {

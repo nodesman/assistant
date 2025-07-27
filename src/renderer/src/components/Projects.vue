@@ -184,11 +184,16 @@ const descriptionTab = ref<'edit' | 'preview'>('edit');
 
 const renderedBody = computed(() => selectedTask.value ? marked(selectedTask.value.body || '') : '');
 
-const fetchProjects = async (selectLastProject = false) => {
+const fetchProjects = async (selectNewProject = false) => {
   const lastProjectId = selectedProject.value?.id;
   try {
     projects.value = await window.api.getProjects();
-    if (selectLastProject && lastProjectId) {
+    if (selectNewProject) {
+        const newProject = projects.value[projects.value.length - 1];
+        if(newProject) {
+            selectedProject.value = newProject;
+        }
+    } else if (lastProjectId) {
         const projectToSelect = projects.value.find(p => p.id === lastProjectId);
         if(projectToSelect) {
             selectedProject.value = projectToSelect;
@@ -203,7 +208,7 @@ const handleCreateProject = async (title: string) => {
   if (!title) return;
   try {
     await window.api.createProject({ title });
-    await fetchProjects();
+    await fetchProjects(true); // Pass true to select the new project
     showNewProjectDialog.value = false;
   } catch (error) {
     console.error('Error creating project:', error);
