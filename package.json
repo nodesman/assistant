@@ -1,14 +1,14 @@
 {
-  "name": "personal-journal-cli",
+  "name": "assistant",
   "version": "0.1.0",
-  "description": "CLI tool for periodic journaling with AI reflection (Part of Personal Task Management System).",
+  "description": "A helpful AI assistant for managing your tasks, projects, and calendar.",
   "main": "out/main/index.js",
   "bin": {
     "assistant": "dist/assistant_cli.js"
   },
   "scripts": {
     "dev": "electron-vite dev -- --no-sandbox",
-    "build": "node scripts/prepare-config.mjs && electron-vite build",
+    "build": "electron-vite build",
     "build:win": "npm run build && electron-builder --win",
     "start:assistant": "ts-node --project tsconfig.cli.json src/assistant_cli.ts",
     "test": "vitest"
