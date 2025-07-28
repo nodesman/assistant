@@ -28,7 +28,15 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
-        external: ['sqlite3', 'better-sqlite3', 'pg', 'mysql', 'oracledb'],
+        external: [
+          'sqlite3',
+          'better-sqlite3',
+          'pg',
+          'mysql',
+          'oracledb',
+          '@prisma/client',
+          /^\.prisma\/client/
+        ],
         input: {
           index: resolve(__dirname, 'src/main/index.ts')
         },
