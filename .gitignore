@@ -69,3 +69,5 @@ config/google-credentials.prod.json
 
 # Environment variables
 .env
+
+/src/generated/prisma

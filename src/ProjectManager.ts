@@ -1,48 +1,59 @@
 // src/ProjectManager.ts
-import { Project, Task } from './types';
+import { PrismaClient, Project, Task } from '@prisma/client';
 import { DatabaseManager } from './DatabaseManager';
-import { v4 as uuidv4 } from 'uuid';
-import { Knex } from 'knex';
 
 export class ProjectManager {
-    private db: Knex;
+    private prisma: PrismaClient;
 
     constructor(dbManager: DatabaseManager) {
-        this.db = dbManager.getDb();
+        this.prisma = dbManager.prisma;
     }
 
     async getAllProjects(): Promise<Project[]> {
-        const projects = await this.db('projects').select('*');
-        for (const project of projects) {
-            project.tasks = await this.db('tasks').where('projectId', project.id);
-        }
-        return projects;
+        return this.prisma.project.findMany({
+            include: {
+                tasks: true,
+            },
+        });
     }
 
-    async createProject(projectData: Partial<Project>): Promise<void> {
-        const newProject = {
-            id: uuidv4(),
-            ...projectData,
-        };
-        await this.db('projects').insert(newProject);
+    async createProject(projectData: { title: string; body?: string }): Promise<Project> {
+        return this.prisma.project.create({
+            data: projectData,
+        });
     }
 
-    async addTask(projectId: string, taskData: Partial<Task>): Promise<void> {
-        // addTask called
-        const newTask = {
-            id: uuidv4(),
-            projectId: projectId,
-            ...taskData,
-        };
-        await this.db('tasks').insert(newTask);
+    async addTask(
+        projectId: string,
+        taskData: {
+            title: string;
+            body?: string;
+            status?: string;
+            duration?: number;
+            minChunk?: number;
+            location?: string;
+        },
+    ): Promise<Task> {
+        return this.prisma.task.create({
+            data: {
+                ...taskData,
+                projectId: projectId,
+            },
+        });
     }
 
-    async updateTask(taskId: string, taskData: Partial<Task>): Promise<void> {
-        // updateTask called
-        await this.db('tasks').where('id', taskId).update(taskData);
+    async updateTask(taskId: string, taskData: Partial<Task>): Promise<Task> {
+        // Omit id and projectId from the update data, as they should not be changed.
+        const { id, projectId, ...dataToUpdate } = taskData;
+        return this.prisma.task.update({
+            where: { id: taskId },
+            data: dataToUpdate,
+        });
     }
 
-    async deleteTask(taskId: string): Promise<void> {
-        await this.db('tasks').where('id', taskId).del();
+    async deleteTask(taskId: string): Promise<Task> {
+        return this.prisma.task.delete({
+            where: { id: taskId },
+        });
     }
 }

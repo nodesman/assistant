@@ -3,13 +3,24 @@ import { defineConfig } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
 import dotenv from 'dotenv'
 import { externalizeDeps } from 'vite-plugin-externalize-deps'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 // Load .env file
 dotenv.config()
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDeps()],
+    plugins: [
+      externalizeDeps(),
+      viteStaticCopy({
+        targets: [
+          {
+            src: resolve(__dirname, 'prisma/schema.prisma'),
+            dest: 'prisma'
+          }
+        ]
+      })
+    ],
     define: {
       // This makes the environment variables available under the import.meta.env object
       'import.meta.env.GOOGLE_CLIENT_ID': `"${process.env.GOOGLE_CLIENT_ID}"`,

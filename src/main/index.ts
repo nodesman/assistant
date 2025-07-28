@@ -1,7 +1,8 @@
-// src/main/index.ts
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path from 'path';
+import fs from 'fs';
+import { spawn } from 'child_process';
 import { ProjectManager } from '../ProjectManager';
 import { AIManager } from '../AIManager';
 import { CalendarManager } from '../CalendarManager';
@@ -17,9 +18,101 @@ import { ChatManager } from '../ChatManager';
 // Define the development server URL
 const VITE_DEV_SERVER_URL = process.env['ELECTRON_VITE_URL'];
 
+function runMigrations() {
+    return new Promise<void>((resolve, reject) => {
+        const userDataPath = app.getPath('userData');
+        const dbPath = path.join(userDataPath, 'assistant.db');
+        const dbUrl = `file:${dbPath}`;
+
+        console.log('Running database migrations...');
+        const prismaPath = path.resolve(process.cwd(), 'node_modules/prisma/build/index.js');
+
+        // Always use Electron's binary in node-mode so migrations run under the same Node runtime (dev & prod)
+        const execBin = process.execPath;
+        // Hide local .env temporarily so Prisma CLI won't auto-load it
+        const cwd = process.cwd();
+        const envFile = path.join(cwd, '.env');
+        let envBackup: string | null = null;
+        if (fs.existsSync(envFile)) {
+            envBackup = envFile + '.bak-prisma';
+            fs.renameSync(envFile, envBackup);
+        }
+        const childEnv: NodeJS.ProcessEnv = {
+            ...process.env,
+            DATABASE_URL: dbUrl,
+            ELECTRON_RUN_AS_NODE: '1',
+        };
+        const child = spawn(execBin, [prismaPath, 'migrate', 'deploy'], {
+            env: childEnv,
+            stdio: 'pipe',
+            cwd,
+        });
+
+        let stdout = '';
+        let stderr = '';
+
+        child.stdout.on('data', (data) => {
+            stdout += data.toString();
+            console.log(`[Prisma stdout]: ${data}`);
+        });
+
+        child.stderr.on('data', (data) => {
+            stderr += data.toString();
+            console.error(`[Prisma stderr]: ${data}`);
+        });
+
+        child.on('close', (code) => {
+            if (envBackup) {
+                fs.renameSync(envBackup, envFile);
+            }
+            if (code === 0) {
+                console.log('Database migrations completed successfully.');
+                resolve();
+            } else {
+                console.error(`Database migrations failed with exit code ${code}.`);
+                console.error(`Stderr: ${stderr}`);
+                console.error(`Stdout: ${stdout}`);
+                reject(new Error(`Migrations failed: ${stderr}`));
+            }
+        });
+
+        child.on('error', (err) => {
+            if (envBackup) {
+                fs.renameSync(envBackup, envFile);
+            }
+            console.error('Failed to start prisma migrate command:', err);
+            reject(err);
+        });
+    });
+}
+
 async function main() {
     // Wait for app to be ready to access userData path
     await app.whenReady();
+
+    // In development, ensure the database is created and migrated
+    if (!app.isPackaged) {
+        console.log('Development mode: ensuring database is up to date.');
+        try {
+            await runMigrations();
+        } catch (error) {
+            console.error("Development database setup failed, app will quit.", error);
+            app.quit();
+            return;
+        }
+    }
+    // In production, the packaged app will run migrations if needed
+    else if (app.isPackaged) {
+        console.log('App is packaged, running migrations...');
+        try {
+            await runMigrations();
+        } catch (error) {
+            console.error("Migration failed, app will quit.", error);
+            // In a production app, you might want to show a dialog to the user.
+            app.quit();
+            return;
+        }
+    }
 
     const userDataPath = app.getPath('userData');
 
@@ -29,7 +122,6 @@ async function main() {
     const chatManager = ChatManager.getInstance();
     const dbManager = new DatabaseManager(config);
     await dbManager.init();
-    await dbManager.migrateFromYaml();
 
     const projectManager = new ProjectManager(dbManager);
     let authManager: AuthManager | null = null;
