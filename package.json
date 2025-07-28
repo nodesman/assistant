@@ -77,6 +77,29 @@
       "out/**",
       "config/**"
     ],
+    "extraResources": [
+      {
+        "from": "node_modules/.prisma",
+        "to": "node_modules/.prisma",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "node_modules/@prisma",
+        "to": "node_modules/@prisma",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "prisma",
+        "to": "prisma",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "mac": {
       "extendInfo": {
         "NSMicrophoneUsageDescription": "This app needs access to your microphone to transcribe voice commands for creating and editing tasks and events."
