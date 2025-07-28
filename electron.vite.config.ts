@@ -15,7 +15,7 @@ export default defineConfig({
       viteStaticCopy({
         targets: [
           {
-            src: resolve(__dirname, 'prisma/schema.prisma'),
+            src: 'prisma/schema.prisma',
             dest: 'prisma'
           }
         ]
