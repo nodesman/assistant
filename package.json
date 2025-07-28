@@ -77,24 +77,28 @@
       "out/**",
       "config/**"
     ],
+    "asarUnpack": [
+      "**/node_modules/.prisma/**",
+      "**/node_modules/@prisma/client/**"
+    ],
     "extraResources": [
       {
         "from": "node_modules/.prisma",
-        "to": "node_modules/.prisma",
+        "to": "app/node_modules/.prisma",
         "filter": [
           "**/*"
         ]
       },
       {
         "from": "node_modules/@prisma",
-        "to": "node_modules/@prisma",
+        "to": "app/node_modules/@prisma",
         "filter": [
           "**/*"
         ]
       },
       {
         "from": "prisma",
-        "to": "prisma",
+        "to": "app/prisma",
         "filter": [
           "**/*"
         ]
